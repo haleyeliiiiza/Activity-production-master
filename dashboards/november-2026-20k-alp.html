@@ -1,0 +1,488 @@
+<meta name="dash-one-writer">
+<style>
+  .nv { font-family: var(--font-anthropic-sans); color: var(--color-fg); display: grid; gap: var(--cds-gap-lg); }
+  .nv h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; }
+  .nv h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0 0 var(--cds-gap-xs); }
+  .nv p { margin: 0; }
+  .nv-lede { font-size: var(--cds-font-size-body); color: var(--color-fg-muted); line-height: 1.5; max-width: 60rem; }
+  .nv-lede b { color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+  .nv-note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-bottom: var(--cds-gap-sm); }
+  .nv-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+  .nv-grid { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+  .nv-tiles { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); }
+  .nv-tile { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); display: grid; gap: var(--cds-gap-xs); align-content: start; }
+  .nv-tile-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .nv-big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .nv-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+  .nv-sub b { color: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
+  .nv-bar { height: 6px; border-radius: 3px; background: var(--cds-chart-grid); overflow: hidden; }
+  .nv-bar > span { display: block; height: 100%; width: 0; background: var(--cds-chart-status-critical); border-radius: 3px; }
+  .nv-bar.is-ok > span { background: var(--color-ok); }
+  .nv-chart { position: relative; min-height: 240px; }
+  .nv-lists { position: relative; min-height: 120px; }
+  .nv-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .nv-tip span { color: var(--cds-text-secondary); display: block; }
+  .nv table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-body); font-variant-numeric: tabular-nums; }
+  .nv th { text-align: right; font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); position: sticky; top: 0; background: var(--color-panel); }
+  .nv td { text-align: right; padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); }
+  .nv th:first-child, .nv td:first-child { text-align: left; }
+  .nv td.is-hit { color: var(--color-ok); font-weight: var(--cds-font-weight-medium); }
+  .nv-scroll { max-height: 22rem; overflow: auto; }
+  .nv-rates input { width: 5.5rem; font: inherit; text-align: right; padding: 2px 6px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); }
+  .nv-rates td:nth-child(2) { font-weight: var(--cds-font-weight-medium); }
+  .nv-week { display: grid; gap: var(--cds-gap-sm); grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+  .nv-day { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); font-size: var(--cds-font-size-caption); line-height: 1.5; }
+  .nv-day h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); margin: 0 0 var(--cds-gap-xs); }
+  .nv-day .nv-busy { color: var(--color-fg-muted); }
+  .nv-day .nv-free { color: var(--color-fg); }
+  .nv-empty { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding: var(--cds-pad-md) 0; }
+  .nv-failed { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .nv-failed::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+  .nv [data-dash-source-state=empty] { color: transparent; }
+  .nv [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+</style>
+
+<div class="nv">
+  <header id="top">
+    <h1>November $20k ALP</h1>
+    <p class="nv-lede">You've written <b data-draw="metric" data-source="totals" data-field="alp" data-row="0">—</b> of <b data-draw="goal">—</b> ALP and you're <b data-draw="pace_word">—</b>. To finish on time you need about <b data-draw="need" data-metric="apps">—</b> apps (<b data-draw="need" data-metric="alp">—</b> ALP) on each of your <b data-draw="days_left">—</b> remaining workdays (Mon–Sat).</p>
+  </header>
+
+  <section id="today" class="nv-card">
+    <h2>What each remaining workday needs</h2>
+    <p class="nv-note">Remaining November target divided by remaining workdays, using your plan rates below. Dials and conversations count lead lists only.</p>
+    <div class="nv-tiles">
+      <div class="nv-tile"><span class="nv-tile-label">Dials</span><span class="nv-big" data-draw="need" data-metric="dials">—</span><span class="nv-sub">MTD <b data-draw="metric" data-source="totals" data-field="dials" data-row="0">—</b> of <span data-draw="target" data-metric="dials">—</span></span><div class="nv-bar" data-draw="bar" data-metric="dials"><span></span></div></div>
+      <div class="nv-tile"><span class="nv-tile-label">Conversations</span><span class="nv-big" data-draw="need" data-metric="conversations">—</span><span class="nv-sub">MTD <b data-draw="metric" data-source="totals" data-field="conversations" data-row="0">—</b> of <span data-draw="target" data-metric="conversations">—</span></span><div class="nv-bar" data-draw="bar" data-metric="conversations"><span></span></div></div>
+      <div class="nv-tile"><span class="nv-tile-label">Bookings</span><span class="nv-big" data-draw="need" data-metric="bookings">—</span><span class="nv-sub">MTD <b data-draw="metric" data-source="totals" data-field="bookings" data-row="0">—</b> of <span data-draw="target" data-metric="bookings">—</span></span><div class="nv-bar" data-draw="bar" data-metric="bookings"><span></span></div></div>
+      <div class="nv-tile"><span class="nv-tile-label">Presentations</span><span class="nv-big" data-draw="need" data-metric="presentations">—</span><span class="nv-sub">MTD <b data-draw="metric" data-source="totals" data-field="presentations" data-row="0">—</b> of <span data-draw="target" data-metric="presentations">—</span></span><div class="nv-bar" data-draw="bar" data-metric="presentations"><span></span></div></div>
+      <div class="nv-tile"><span class="nv-tile-label">Apps</span><span class="nv-big" data-draw="need" data-metric="apps">—</span><span class="nv-sub">MTD <b data-draw="metric" data-source="totals" data-field="apps" data-row="0">—</b> of <span data-draw="target" data-metric="apps">—</span></span><div class="nv-bar" data-draw="bar" data-metric="apps"><span></span></div></div>
+      <div class="nv-tile"><span class="nv-tile-label">ALP</span><span class="nv-big" data-draw="need" data-metric="alp">—</span><span class="nv-sub">MTD <b data-draw="metric" data-source="totals" data-field="alp" data-row="0">—</b> of <span data-draw="goal">—</span></span><div class="nv-bar" data-draw="bar" data-metric="alp"><span></span></div></div>
+    </div>
+  </section>
+
+  <div class="nv-grid">
+    <section id="pace" class="nv-card">
+      <h2>ALP written vs. pace</h2>
+      <p class="nv-note">Running total of app premium by day. The pace line reaches the goal on Nov 30, rising only on workdays.</p>
+      <div class="nv-chart" data-draw="pace" data-source="daily"></div>
+    </section>
+
+    <section id="rates" class="nv-card nv-rates">
+      <h2>Your rates vs. the plan</h2>
+      <p class="nv-note">Edit a plan number and every target on the page updates. Raise the close rate as yours improves.</p>
+      <table>
+        <thead><tr><th>Step</th><th>November so far</th><th>Plan</th></tr></thead>
+        <tbody>
+          <tr><td>Dials per conversation</td><td><span data-draw="rate" data-source="rates" data-field="dials_per_conv" data-row="0">—</span></td><td><input class="nv-in" data-param="dials_per_conv" type="number" min="1" max="200" step="1" aria-label="Plan dials per conversation"></td></tr>
+          <tr><td>Bookings per conversation</td><td><span data-draw="rate" data-source="rates" data-field="books_per_conv" data-row="0">—</span></td><td><input class="nv-in" data-param="books_per_conv" type="number" min="0.05" max="5" step="0.05" aria-label="Plan bookings per conversation"></td></tr>
+          <tr><td>Show rate (%)</td><td><span data-draw="rate" data-source="rates" data-field="show_rate" data-row="0">—</span></td><td><input class="nv-in" data-param="show_pct" type="number" min="1" max="100" step="1" aria-label="Plan show rate percent"></td></tr>
+          <tr><td>Close rate (%)</td><td><span data-draw="rate" data-source="rates" data-field="close_rate" data-row="0">—</span></td><td><input class="nv-in" data-param="close_pct" type="number" min="1" max="100" step="1" aria-label="Plan close rate percent"></td></tr>
+          <tr><td>Average ALP per app ($)</td><td><span data-draw="rate" data-source="rates" data-field="avg_alp" data-row="0">—</span></td><td><input class="nv-in" data-param="avg_alp" type="number" min="100" max="20000" step="50" aria-label="Plan average ALP per app"></td></tr>
+        </tbody>
+      </table>
+      <p class="nv-note" style="margin-top: var(--cds-gap-sm)">Show rate = presentations ÷ (presentations + no-shows). Close rate = apps ÷ presentations. Log both from the form.</p>
+    </section>
+  </div>
+
+  <div class="nv-grid">
+    <section id="lists" class="nv-card">
+      <h2>Dials by power list</h2>
+      <p class="nv-note">November lead dials from Kixie, with conversations in color. Recruiting lists are left out.</p>
+      <div class="nv-lists" data-draw="lists" data-source="by_list"></div>
+      <p class="nv-note">Recruiting calls this month: <b data-draw="metric" data-source="totals" data-field="recruiting_calls" data-row="0">—</b></p>
+    </section>
+
+    <section id="days" class="nv-card">
+      <h2>Day by day</h2>
+      <p class="nv-note">Green means that day hit its daily plan target.</p>
+      <div class="nv-scroll">
+        <table data-source="daily" data-row-key="date">
+          <thead><tr><th data-field="date">Date</th><th data-field="dials">Dials</th><th data-field="conversations">Convos</th><th data-field="bookings">Booked</th><th data-field="presentations">Presented</th><th data-field="apps">Apps</th><th data-field="alp">ALP</th></tr></thead>
+          <tbody data-draw="daily_rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section id="week" class="nv-card">
+    <h2>Your usual week</h2>
+    <p class="nv-note">From your Google Calendar, Oct 19 – Nov 7 (Regina time). Lighter text is booked; darker text is open for dials and presentations. Last week you held about 8 presentations booked through Calendly, mostly at 8 AM, late morning and 3–5 PM.</p>
+    <div class="nv-week">
+      <div class="nv-day"><h3>Monday</h3><div class="nv-busy">Managers Meeting 11–12 · Agency Meeting 1–2</div><div class="nv-free">Sales: 8–11 AM and 2–5 PM</div></div>
+      <div class="nv-day"><h3>Tuesday</h3><div class="nv-busy">Final Interview 12–1 (recruiting)</div><div class="nv-free">Sales: 8 AM–12 and 1–5 PM</div></div>
+      <div class="nv-day"><h3>Wednesday</h3><div class="nv-busy">Turn in Report 5–7 PM</div><div class="nv-free">Sales: 8 AM–5 PM, your most open day</div></div>
+      <div class="nv-day"><h3>Thursday</h3><div class="nv-busy">Agency Meeting 11–12:30 · ICM Reports 12:30–1:30 · Final Interview 7–8 PM</div><div class="nv-free">Sales: 8–11 AM and 1:30–5 PM</div></div>
+      <div class="nv-day"><h3>Friday</h3><div class="nv-busy">Onboarding 12:45–2 · Recruiting Pow Wow 2–2:30 · Turn in Report 5–7 PM</div><div class="nv-free">Sales: 8 AM–12:45 and 2:30–5 PM</div></div>
+      <div class="nv-day"><h3>Saturday</h3><div class="nv-busy">Nothing recurring</div><div class="nv-free">Sales: catch-up dials and weekend presentations</div></div>
+    </div>
+    <p class="nv-note" style="margin-top: var(--cds-gap-sm)">In November, BC is 2 hours and Alberta 1 hour behind Regina, so your BC Leads list reaches people at home best from about 5–7 PM your time.</p>
+  </section>
+</div>
+
+<script>
+  // Google Sheets get_values answers {range, values: [[header...], [row...]]}: make row objects keyed by the header, plus the sheet row number for joining.
+  const sheetRows = ({ answer }) => {
+    const a = typeof answer === 'string' ? JSON.parse(answer) : answer;
+    if (a && a.error) throw new Error(String(a.error.message || a.error));
+    const values = (a && a.values) || [];
+    const head = (values[0] || []).map((h) => String(h).trim());
+    const rows = values.slice(1).map((r, i) => {
+      const o = { row: i + 2 };
+      head.forEach((h, j) => { if (h) o[h] = r[j] ?? ''; });
+      return o;
+    });
+    return { columns: ['row', ...head.filter(Boolean)], rows };
+  };
+  dash.loader('log_type', { description: 'Sheet values as rows, the first row naming the columns, with each row’s sheet row number', fn: sheetRows });
+  dash.loader('log_detail', { description: 'Sheet values as rows, the first row naming the columns, with each row’s sheet row number', fn: sheetRows });
+</script>
+
+<script>
+  // Plan maths shared by the drawings. The goal and month are fixed references the user chose.
+  window.NV = (() => {
+    const GOAL = 20000;
+    const days = [];
+    for (let d = 1; d <= 30; d++) {
+      const iso = '2026-11-' + String(d).padStart(2, '0');
+      days.push({ iso, work: new Date(iso + 'T12:00:00Z').getUTCDay() !== 0 });
+    }
+    const workdays = days.filter((x) => x.work).map((x) => x.iso);
+    const today = () => {
+      const n = new Date();
+      return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+    };
+    const elapsed = () => workdays.filter((d) => d < today()).length;
+    const remaining = () => Math.max(workdays.length - elapsed(), 1);
+    const num = (v, dflt, lo, hi) => { const x = Number(v); return Number.isFinite(x) && x > 0 ? Math.min(Math.max(x, lo), hi) : dflt; };
+    const plan = () => {
+      const p = dash.params();
+      const alpPer = num(p.avg_alp, 1000, 100, 20000);
+      const close = num(p.close_pct, 10, 1, 100) / 100;
+      const show = num(p.show_pct, 47, 1, 100) / 100;
+      const dpc = num(p.dials_per_conv, 21, 1, 200);
+      const bpc = num(p.books_per_conv, 1, 0.05, 5);
+      const apps = GOAL / alpPer;
+      const presentations = apps / close;
+      const bookings = presentations / show;
+      const conversations = bookings / bpc;
+      return { alp: GOAL, apps, presentations, bookings, conversations, dials: conversations * dpc };
+    };
+    const money = d3.format('$,.0f');
+    const fmt = (metric, v) => {
+      if (v == null || !Number.isFinite(Number(v))) return '—';
+      v = Number(v);
+      if (metric === 'alp') return money(v);
+      return v > 0 && v < 10 && Math.round(v) !== v ? d3.format('.1f')(v) : d3.format(',.0f')(v);
+    };
+    const total = () => { const t = dash.data('totals'); return t.status === 'ok' && t.data[0] ? t.data[0] : null; };
+    return { GOAL, days, workdays, today, elapsed, remaining, plan, fmt, money, total };
+  })();
+</script>
+
+<script>
+  // Plan inputs: listen and set values only.
+  const ins = document.querySelectorAll('.nv-in');
+  ins.forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const v = Number(inp.value);
+      if (inp.value !== '' && inp.validity.valid && v > 0) dash.setParams({ [inp.dataset.param]: v });
+    });
+    inp.addEventListener('blur', () => { inp.value = dash.params()[inp.dataset.param] ?? ''; });
+  });
+  dash.onData(() => {
+    ins.forEach((inp) => { if (inp !== document.activeElement) inp.value = dash.params()[inp.dataset.param] ?? ''; });
+  });
+</script>
+
+<script>
+  dash.calc('nov_entries', {
+    title: 'November tracker entries',
+    description: 'Tracker rows dated in November 2026, joining the Date/Type columns to the Premium-to-Power List columns by sheet row.',
+    inputs: ['log_type', 'log_detail'],
+    fn: (log_type, log_detail) => {
+      const detail = new Map(log_detail.map((r) => [r.row, r]));
+      return log_type
+        .filter((r) => String(r.Date || '').startsWith('2026-11'))
+        .map((r) => {
+          const x = detail.get(r.row) || {};
+          const notes = String(x.Notes || '');
+          return {
+            row: r.row,
+            date: String(r.Date).slice(0, 10),
+            type: String(r.Type || '').trim(),
+            alp: Number(String(x.Premium || '').replace(/[^0-9.]/g, '')) || 0,
+            connected: notes.startsWith('Connected') && !/no answer|voicemail|call control/i.test(notes),
+            interview: /interview/i.test(notes),
+            list: String(x['Power List'] || '').trim(),
+          };
+        });
+    },
+  });
+
+  dash.calc('totals', {
+    title: 'November totals',
+    description: 'Counts each activity type for November. Bookings leave out recruiting interviews; ALP sums Application Submitted premium.',
+    inputs: ['nov_entries'],
+    fn: (nov_entries) => {
+      const of = (t) => nov_entries.filter((e) => e.type === t);
+      const calls = of('Call');
+      const apps = of('Application Submitted');
+      return [{
+        dials: calls.length,
+        conversations: calls.filter((e) => e.connected).length,
+        bookings: of('Appointment Set').filter((e) => !e.interview).length,
+        presentations: of('Presentation Held').length,
+        noshows: of('No-Show').length,
+        apps: apps.length,
+        alp: apps.reduce((s, e) => s + e.alp, 0),
+        issued: of('Policy Issued').length,
+        recruiting_calls: of('Recruiting Call').length,
+      }];
+    },
+  });
+
+  dash.calc('daily', {
+    title: 'November by day',
+    description: 'The same counts as November totals, one row per date with any activity.',
+    inputs: ['nov_entries'],
+    fn: (nov_entries) => {
+      const by = new Map();
+      for (const e of nov_entries) {
+        const r = by.get(e.date) || { date: e.date, dials: 0, conversations: 0, bookings: 0, presentations: 0, apps: 0, alp: 0 };
+        if (e.type === 'Call') { r.dials += 1; if (e.connected) r.conversations += 1; }
+        if (e.type === 'Appointment Set' && !e.interview) r.bookings += 1;
+        if (e.type === 'Presentation Held') r.presentations += 1;
+        if (e.type === 'Application Submitted') { r.apps += 1; r.alp += e.alp; }
+        by.set(e.date, r);
+      }
+      return [...by.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
+    },
+  });
+
+  dash.calc('rates', {
+    title: 'November conversion rates',
+    description: 'Ratios from November totals: dials per conversation, bookings per conversation, show rate, close rate and average ALP per app. Blank until both counts exist.',
+    inputs: ['totals'],
+    fn: (totals) => {
+      const t = totals[0] || {};
+      const div = (a, b) => (b > 0 ? a / b : null);
+      return [{
+        dials_per_conv: div(t.dials, t.conversations),
+        books_per_conv: div(t.bookings, t.conversations),
+        show_rate: div(t.presentations, t.presentations + t.noshows),
+        close_rate: div(t.apps, t.presentations),
+        avg_alp: div(t.alp, t.apps),
+      }];
+    },
+  });
+
+  dash.calc('by_list', {
+    title: 'Lead dials by power list',
+    description: 'November Call rows from Kixie grouped by power list, with conversations. Recruiting Call rows are excluded.',
+    inputs: ['nov_entries'],
+    fn: (nov_entries) => {
+      const by = new Map();
+      for (const e of nov_entries) {
+        if (e.type !== 'Call' || !e.list) continue;
+        const r = by.get(e.list) || { list: e.list, dials: 0, conversations: 0 };
+        r.dials += 1;
+        if (e.connected) r.conversations += 1;
+        by.set(e.list, r);
+      }
+      return [...by.values()].sort((a, b) => b.dials - a.dials);
+    },
+  });
+</script>
+
+<script>
+  // Small text drawings
+  dash.draw('goal', (el) => { el.textContent = NV.money(NV.GOAL); });
+  dash.draw('days_left', (el) => { el.textContent = String(NV.remaining()); });
+
+  dash.draw('metric', (el) => {
+    const t = NV.total();
+    el.textContent = t ? NV.fmt(el.dataset.field, t[el.dataset.field]) : '—';
+  });
+
+  dash.draw('target', (el) => { el.textContent = NV.fmt(el.dataset.metric, NV.plan()[el.dataset.metric]); });
+
+  dash.draw('need', (el) => {
+    const m = el.dataset.metric;
+    const t = NV.total();
+    const left = Math.max(NV.plan()[m] - (t ? Number(t[m]) || 0 : 0), 0);
+    el.textContent = NV.fmt(m, left / NV.remaining());
+  });
+
+  dash.draw('bar', (el) => {
+    const m = el.dataset.metric;
+    const t = NV.total();
+    const target = NV.plan()[m];
+    const done = t ? Number(t[m]) || 0 : 0;
+    const expected = target * NV.elapsed() / NV.workdays.length;
+    const fill = el.querySelector('span');
+    if (fill) fill.style.width = Math.min(target > 0 ? (done / target) * 100 : 0, 100) + '%';
+    el.classList.toggle('is-ok', done >= expected);
+    el.setAttribute('aria-label', NV.fmt(m, done) + ' of ' + NV.fmt(m, target));
+  });
+
+  dash.draw('pace_word', (el) => {
+    const t = NV.total();
+    if (!t) { el.textContent = '—'; return; }
+    const expected = NV.GOAL * NV.elapsed() / NV.workdays.length;
+    const gap = (Number(t.alp) || 0) - expected;
+    if (NV.elapsed() === 0) el.textContent = 'at the start line';
+    else if (Math.abs(gap) < 1) el.textContent = 'right on pace';
+    else el.textContent = gap > 0 ? NV.money(gap) + ' ahead of pace' : NV.money(-gap) + ' behind pace';
+  });
+
+  dash.draw('rate', (el) => {
+    const r = dash.data('rates');
+    const v = r.status === 'ok' && r.data[0] ? r.data[0][el.dataset.field] : null;
+    if (v == null) { el.textContent = '—'; return; }
+    const f = el.dataset.field;
+    el.textContent = f === 'avg_alp' ? NV.money(v) : (f === 'show_rate' || f === 'close_rate') ? d3.format('.0%')(v) : d3.format(',.1f')(v);
+  });
+</script>
+
+<script>
+  // Day-by-day table body
+  dash.draw('daily_rows', (tbody) => {
+    const d = dash.data('daily');
+    tbody.replaceChildren();
+    if (d.status !== 'ok') return;
+    const p = NV.plan();
+    const per = (m) => p[m] / NV.workdays.length;
+    const cols = ['dials', 'conversations', 'bookings', 'presentations', 'apps', 'alp'];
+    const rows = [...d.data].sort((a, b) => (a.date < b.date ? 1 : -1));
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      tr.dataset.key = r.date;
+      const td0 = document.createElement('td');
+      td0.textContent = d3.utcFormat('%a %b %-d')(new Date(r.date + 'T00:00:00Z'));
+      tr.append(td0);
+      for (const c of cols) {
+        const td = document.createElement('td');
+        td.textContent = NV.fmt(c, r[c]);
+        if ((Number(r[c]) || 0) >= per(c) && per(c) > 0) td.classList.add('is-hit');
+        tr.append(td);
+      }
+      tbody.append(tr);
+    }
+  });
+</script>
+
+<script>
+  // Pace chart: running ALP vs. the workday pace line
+  dash.draw('pace', (el) => {
+    const d = dash.data('daily');
+    el.replaceChildren();
+    el.classList.toggle('dash-skeleton', d.status === 'loading');
+    if (d.status === 'loading') return;
+    if (d.status === 'error') { const f = document.createElement('div'); f.className = 'nv-failed'; f.textContent = 'Failed to load'; el.append(f); return; }
+    if (d.status !== 'ok') return;
+
+    const W = Math.max(el.clientWidth, 280), H = 240;
+    const parse = (s) => new Date(s + 'T00:00:00Z');
+    let wi = 0;
+    const planPts = [{ date: parse('2026-11-01'), v: 0 }];
+    for (const x of NV.days) { if (x.work) wi += 1; planPts.push({ date: d3.utcDay.offset(parse(x.iso), 1), v: NV.GOAL * wi / NV.workdays.length }); }
+    const byDate = new Map(d.data.map((r) => [r.date, Number(r.alp) || 0]));
+    const t = NV.today();
+    let cum = 0;
+    const act = [{ date: parse('2026-11-01'), v: 0 }];
+    for (const x of NV.days) { if (x.iso > t) break; cum += byDate.get(x.iso) || 0; act.push({ date: d3.utcDay.offset(parse(x.iso), 1), v: cum, day: x.iso }); }
+
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Running ALP versus pace');
+    const fmtK = (v) => (v >= 1000 ? '$' + d3.format('.0f')(v / 1000) + 'k' : '$' + v);
+    const yMax = Math.max(NV.GOAL, cum) * 1.05;
+    const y = d3.scaleLinear([0, yMax], [H - 26, 12]);
+    const probe = svg.append('text').attr('font-size', 12).text(fmtK(Math.round(yMax / 5000) * 5000));
+    const left = Math.ceil(probe.node().getComputedTextLength()) + 10;
+    probe.remove();
+    const endA = svg.append('text').attr('font-size', 12).text('You ' + NV.money(cum));
+    const endP = svg.append('text').attr('font-size', 12).text('Pace');
+    const right = Math.ceil(Math.max(endA.node().getComputedTextLength(), endP.node().getComputedTextLength())) + 12;
+    endA.remove(); endP.remove();
+    const x = d3.scaleUtc([parse('2026-11-01'), parse('2026-12-01')], [left, W - right]);
+
+    svg.append('g').selectAll('line').data(y.ticks(4)).join('line')
+      .attr('x1', left).attr('x2', W - right).attr('y1', (v) => y(v)).attr('y2', (v) => y(v))
+      .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+    svg.append('g').selectAll('text').data(y.ticks(4)).join('text')
+      .attr('x', left - 6).attr('y', (v) => y(v)).attr('dy', '0.32em').attr('text-anchor', 'end')
+      .attr('font-size', 12).attr('fill', 'var(--color-fg-muted)').text(fmtK);
+    const xt = W < 420 ? [1, 15, 30] : [1, 8, 15, 22, 30];
+    svg.append('g').selectAll('text').data(xt).join('text')
+      .attr('x', (dd) => x(parse('2026-11-' + String(dd).padStart(2, '0')))).attr('y', H - 6).attr('text-anchor', 'middle')
+      .attr('font-size', 12).attr('fill', 'var(--color-fg-muted)').text((dd) => 'Nov ' + dd);
+
+    const line = d3.line().x((p) => x(p.date)).y((p) => y(p.v));
+    svg.append('path').attr('d', line(planPts)).attr('fill', 'none').attr('stroke', 'var(--cds-chart-reference)').attr('stroke-width', 1.5).attr('stroke-dasharray', '4 4');
+    svg.append('path').attr('d', line(act)).attr('fill', 'none').attr('stroke', dash.colors[0]).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round');
+
+    const lastA = act[act.length - 1], lastP = planPts[planPts.length - 1];
+    let yA = y(lastA.v), yP = y(lastP.v);
+    if (Math.abs(yA - yP) < 14 && x(lastA.date) > W - right - 40) yA = yP + 14;
+    svg.append('text').attr('x', x(lastA.date) + 6).attr('y', yA).attr('dy', '0.32em').attr('font-size', 12).attr('fill', dash.colors[0]).text('You ' + NV.money(lastA.v));
+    svg.append('text').attr('x', x(lastP.date) + 6).attr('y', yP).attr('dy', '0.32em').attr('font-size', 12).attr('fill', 'var(--color-fg-muted)').text('Pace');
+
+    const dot = svg.append('circle').attr('r', 4).attr('fill', dash.colors[0]).style('display', 'none');
+    const tip = document.createElement('div');
+    tip.className = 'nv-tip';
+    tip.style.display = 'none';
+    el.append(tip);
+    const pts = act.slice(1);
+    svg.append('rect').attr('x', left).attr('y', 0).attr('width', W - left - right).attr('height', H).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        if (!pts.length) return;
+        const [mx] = d3.pointer(ev);
+        const i = d3.leastIndex(pts, (p) => Math.abs(x(p.date) - mx));
+        const p = pts[i];
+        const pace = planPts.find((q) => +q.date === +p.date);
+        dot.style('display', null).attr('cx', x(p.date)).attr('cy', y(p.v));
+        tip.replaceChildren();
+        const s = document.createElement('span'); s.textContent = d3.utcFormat('%a %b %-d')(parse(p.day));
+        const a = document.createElement('div'); a.textContent = 'Written ' + NV.money(p.v);
+        const b = document.createElement('div'); b.textContent = 'Pace ' + NV.money(pace ? pace.v : 0);
+        tip.append(s, a, b);
+        tip.style.display = 'block';
+        const sx = el.clientWidth / W;
+        const tx = Math.min(Math.max(x(p.date) * sx + 10, 0), el.clientWidth - tip.offsetWidth);
+        tip.style.left = tx + 'px';
+        tip.style.top = Math.max(y(p.v) * sx - 50, 0) + 'px';
+      })
+      .on('pointerleave', () => { dot.style('display', 'none'); tip.style.display = 'none'; });
+  });
+</script>
+
+<script>
+  // Dials by power list: horizontal bars, conversations overlaid
+  dash.draw('lists', (el) => {
+    const d = dash.data('by_list');
+    el.replaceChildren();
+    el.classList.toggle('dash-skeleton', d.status === 'loading');
+    if (d.status === 'loading') return;
+    if (d.status === 'error') { const f = document.createElement('div'); f.className = 'nv-failed'; f.textContent = 'Failed to load'; el.append(f); return; }
+    if (d.status !== 'ok') return;
+    if (!d.data.length) {
+      const e = document.createElement('p'); e.className = 'nv-empty';
+      e.textContent = 'No power-list dials logged yet this month. They appear here as Kixie sends them.';
+      el.append(e); return;
+    }
+    const W = Math.max(el.clientWidth, 260), row = 34, H = d.data.length * row + 8;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`);
+    const probe = svg.append('g');
+    let lab = 0;
+    for (const r of d.data) { const tx = probe.append('text').attr('font-size', 12).text(r.list); lab = Math.max(lab, tx.node().getComputedTextLength()); }
+    probe.remove();
+    const left = Math.min(Math.ceil(lab) + 12, W * 0.45), right = 90;
+    const x = d3.scaleLinear([0, d3.max(d.data, (r) => r.dials) || 1], [0, W - left - right]);
+    const g = svg.append('g').selectAll('g').data(d.data).join('g').attr('transform', (r, i) => `translate(0,${i * row + 4})`);
+    g.append('text').attr('x', left - 8).attr('y', 11).attr('dy', '0.32em').attr('text-anchor', 'end').attr('font-size', 12).attr('fill', 'var(--color-fg)').text((r) => r.list);
+    g.append('rect').attr('x', left).attr('y', 2).attr('height', 18).attr('rx', 3).attr('width', (r) => Math.max(x(r.dials), 1)).attr('fill', 'var(--cds-chart-muted)');
+    g.append('rect').attr('x', left).attr('y', 2).attr('height', 18).attr('rx', 3).attr('width', (r) => x(r.conversations)).attr('fill', dash.colors[0]);
+    g.append('text').attr('x', (r) => left + Math.max(x(r.dials), 1) + 6).attr('y', 11).attr('dy', '0.32em').attr('font-size', 12).attr('fill', 'var(--color-fg-muted)')
+      .text((r) => d3.format(',')(r.dials) + ' · ' + d3.format(',')(r.conversations) + ' convo');
+  });
+</script>
