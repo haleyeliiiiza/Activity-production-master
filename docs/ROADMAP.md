@@ -1,6 +1,6 @@
 # Roadmap
 
-1. Confirm the Tracker/Power Lists columns against the live sheet and add the sheet ID to `docs/SHEET_SCHEMA.md`.
+1. ~~Confirm the Tracker/Power Lists columns against the live sheet~~ (done 2026-11-02; the sheet ID stays out of the public repo).
 2. Add Policies, Goals and Import log tabs.
 3. Build the tabbed hub dashboard (`dashboard/index.html`) in the Finance Hub style: Dashboard, Activity, Pipeline, Recruiting, Policies & Commissions. Make the month and goal selectable instead of hard-coded to November 2026.
 4. Export the n8n workflows into `n8n/`.
