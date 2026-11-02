@@ -1,0 +1,10 @@
+# Private data - never commit
+data/
+*.csv
+*.db
+*.sqlite
+.env
+exports/
+screenshots/
+node_modules/
+.DS_Store
