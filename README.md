@@ -17,15 +17,27 @@ Manual entry ────────────────┘                
 
 ## Hub tabs
 
-| Tab | What it answers |
-|---|---|
-| Dashboard | Goal progress, pace, what is needed per day, this month vs. last |
-| Activity | Dials, conversations, bookings, presentations, no-shows by day and by power list |
-| Pipeline | Leads, follow-ups due, applications submitted, policies issued |
-| Recruiting | Recruiting calls and interviews, kept separate from sales numbers |
-| Policies & Commissions | Issued policies with ALP and expected commission, ready to feed income into the Finance Hub |
+`dashboard/index.html` is the hub page. It reads the sheet through the Claude Google Sheets connector, so it runs inside Claude (like the Finance Hub), not as a standalone web page.
 
-Status: the November 2026 $20k ALP dashboard exists (`dashboard/november-2026-20k-alp.html`). The other tabs are planned; see [docs/ROADMAP.md](docs/ROADMAP.md).
+| Tab | What it shows | Sheet tabs it reads |
+|---|---|---|
+| Dashboard | November goal, this week vs. plan, next presentations, follow-ups, pipeline, call queue | all four below |
+| Leads | Pipeline by status and lead type, searchable lead list, call queue by next step | All Leads Master, Call Lists |
+| Activity | Dials, conversations, bookings, presentations by day and by power list, latest entries | Tracker |
+| Stats | Running totals, conversion rates, daily dials and conversations | Stats |
+| Production | ALP, policies and presentations against the $20k plan, weekly plan table | Tracker |
+
+More tabs (Recruiting, Policies & Commissions) are planned; see [docs/ROADMAP.md](docs/ROADMAP.md). To add one, append it to `TABS` in the page, add a `<section id="p-NAME">` and a render function.
+
+### Publishing the page
+
+The sheet ID is not stored in this repo (the sheet is link-shared and holds client data), so the committed page has a `__SHEET_ID__` placeholder. Fill it in when publishing:
+
+```bash
+sed 's#__SHEET_ID__#<your sheet id>#' dashboard/index.html > /tmp/activity-hub.html
+```
+
+Publish that file as a Claude artifact with the Google Sheets connector (`get_values`) allowed.
 
 ## November 2026 — $20k ALP
 

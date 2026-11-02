@@ -1,0 +1,364 @@
+<title>Activity Hub</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: same shell as the Finance Hub. Sticky title and scrolling tab row, one panel per tab, hairline-divided KPI strips. Single light look by design (white page, forest-green ink). */
+:root{
+  --bg:#FFFFFF; --ink:#14231B; --muted:#5B6D62; --line:#DDE5DE; --mist:#EEF3EE;
+  --forest:#1B3A2B; --green:#2F5D43; --sage:#6F8F72; --brass:#B8934A; --brass-ink:#7A5E22; --neg:#9B3B2E;
+  --chip-brass:#F4E9CF; --chip-neg:#F3E1DD; --chip-grey:#ECEFEC;
+  --f-display:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  --f-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.45;margin:0;
+  padding-block:0 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+.wrap{max-width:980px;margin:0 auto}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);padding-top:14px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font:600 30px/1 var(--f-display);color:var(--forest);margin:0;letter-spacing:.01em}
+.sync{font-size:12.5px;color:var(--muted)}
+.sync button{all:unset;cursor:pointer;color:var(--green);font-weight:600;margin-left:8px}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;margin-top:10px;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{all:unset;cursor:pointer;white-space:nowrap;padding:10px 12px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+nav.tabs button[aria-selected="true"]{color:var(--forest);border-bottom-color:var(--brass)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+main{padding-top:20px;display:grid;gap:26px}
+h2{font:600 22px/1.15 var(--f-display);color:var(--forest);margin:0;text-wrap:balance}
+h3{font:600 12px var(--f-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0}
+.panel{display:grid;gap:26px;min-width:0}
+.panel[hidden]{display:none}
+.banner{background:var(--mist);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13.5px}
+.banner.warn{background:#F7EFDD;border-color:#E6D4A6;color:#5E4713}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+select,input{font:500 14px var(--f-ui);color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0;max-width:100%}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.seg button{all:unset;cursor:pointer;padding:8px 14px;font:600 13px var(--f-ui);color:var(--forest)}
+.seg button[aria-pressed="true"]{background:var(--forest);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
+.sec{display:grid;gap:10px;min-width:0}
+.sec .hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sec .hd .n{font-size:12.5px;color:var(--muted)}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.kpi{padding:14px 14px 14px 0;min-width:0}
+.kpi + .kpi{padding-left:14px;border-left:1px solid var(--line)}
+.kpi .v{font:600 30px/1.05 var(--f-display);color:var(--forest);font-variant-numeric:lining-nums tabular-nums;margin-top:4px;overflow-wrap:anywhere}
+.kpi .s{font-size:12.5px;color:var(--muted);margin-top:2px}
+.kpi .bar{height:5px;background:var(--mist);border-radius:3px;margin-top:8px;overflow:hidden}
+.kpi .bar i{display:block;height:100%;background:var(--green);border-radius:3px}
+@media (max-width:560px){.kpi:nth-child(odd){padding-left:0;border-left:0}.kpi{border-top:1px solid var(--line)}.kpi:nth-child(-n+2){border-top:0}}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:13.5px}
+th,td{padding:8px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--mist)}
+th.l,td.l{text-align:left}
+td.wrap-t{white-space:normal;min-width:160px}
+tr:last-child td{border-bottom:0}
+tr.total td{font-weight:700;background:var(--mist)}
+td.neg{color:var(--neg)} td.dim,.dim{color:var(--muted)}
+
+.meter{display:flex;height:14px;background:var(--mist);border-radius:7px;overflow:hidden}
+.meter i{display:block;height:100%}
+.legend{display:flex;gap:6px 16px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.legend span{white-space:nowrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.legend b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+.chip{display:inline-block;font:600 11.5px var(--f-ui);padding:2px 8px;border-radius:99px;background:var(--chip-grey);color:var(--muted);white-space:nowrap}
+.chip.booked{background:var(--mist);color:var(--forest)}
+.chip.follow{background:var(--chip-brass);color:var(--brass-ink)}
+.chip.ni{background:var(--chip-neg);color:var(--neg)}
+
+.list{display:grid;border-top:1px solid var(--line)}
+.item{display:grid;grid-template-columns:70px minmax(0,1fr) auto;gap:2px 12px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
+.item .d{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.item .p{font-weight:600;overflow-wrap:anywhere}
+.item .m{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:26px 32px}
+.empty{border:1px dashed var(--sage);border-radius:8px;padding:20px 18px;color:var(--muted);max-width:62ch}
+.empty b{color:var(--forest)}
+.more{all:unset;cursor:pointer;color:var(--green);font-weight:600;font-size:13.5px;padding:6px 0}
+.chartbox{overflow-x:auto}
+svg text{font-family:var(--f-ui)}
+.ax{fill:var(--muted);font-size:11px}
+.lbl{fill:var(--forest);font-size:11.5px;font-weight:600}
+@media (max-width:520px){h1{font-size:27px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="brand"><h1>Activity Hub</h1><div class="sync" id="sync">Loading…</div></div>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+</header>
+<main>
+  <div id="banner" class="banner" hidden></div>
+  <section class="panel" id="p-dashboard"></section>
+  <section class="panel" id="p-leads" hidden></section>
+  <section class="panel" id="p-activity" hidden></section>
+  <section class="panel" id="p-stats" hidden></section>
+  <section class="panel" id="p-production" hidden></section>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+// Sheet ID is filled in when the page is published (see README). It is never committed to the public repo.
+const SID="__SHEET_ID__", SRV="Google Sheets";
+// Add a tab: append it here, add a <section id="p-NAME"> above and a render function below.
+const TABS=[["dashboard","Dashboard"],["leads","Leads"],["activity","Activity"],["stats","Stats"],["production","Production"]];
+// November 2026 plan, from the "November 20k ALP Plan" tab.
+const PLAN={month:"2026-11",goal:20000,avg:1000,close:0.30,pres:67,sales:20,
+  weeks:[{label:"Nov 2–6",start:"2026-11-02",end:"2026-11-06",pres:16,sales:5},{label:"Nov 9–13",start:"2026-11-09",end:"2026-11-13",pres:16,sales:5},
+         {label:"Nov 16–20",start:"2026-11-16",end:"2026-11-20",pres:16,sales:5},{label:"Nov 23–30",start:"2026-11-23",end:"2026-11-30",pres:19,sales:5}]};
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const iso=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fd=s=>{if(!s)return"";const p=s.split("-");return MON[+p[1]-1]+" "+(+p[2])};
+const now0=new Date(), TODAY=iso(now0.getFullYear(),now0.getMonth()+1,now0.getDate());
+const num=v=>{const n=parseFloat(String(v??"").replace(/[^0-9.\-]/g,""));return isFinite(n)?n:0};
+const money=n=>"$"+Math.round(n||0).toLocaleString("en-CA");
+const pct=(a,b)=>b>0?(Math.round(a/b*1000)/10)+"%":"—";
+const n1=n=>isFinite(n)?(Math.round(n*10)/10).toLocaleString("en-CA"):"—";
+function parseDate(s,defY){s=String(s??"").trim();let m;
+  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)))return iso(m[1],+m[2],+m[3]);
+  if((m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)))return iso(m[3],+m[1],+m[2]);
+  if((m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})\b/)))return iso(2000+ +m[3],+m[1],+m[2]);
+  if(defY&&(m=s.match(/^(\d{1,2})\/(\d{1,2})$/)))return iso(defY,+m[1],+m[2]);
+  return null}
+
+/* ---------- plan calendar: weekdays in November ---------- */
+const WORKDAYS=[]; for(let d=1;d<=30;d++){const dow=new Date(Date.UTC(2026,10,d)).getUTCDay(); if(dow>=1&&dow<=5)WORKDAYS.push(iso(2026,11,d))}
+const weekOf=d=>PLAN.weeks.find(w=>d>=w.start&&d<=w.end);
+const planDay=d=>{const w=weekOf(d);if(!w)return 0;const n=WORKDAYS.filter(x=>x>=w.start&&x<=w.end).length;return PLAN.avg*w.sales/n};
+
+/* ---------- state ---------- */
+const S={mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,
+  lf:{view:"all",type:"all",status:"all",q:"",limit:40}};
+try{const t=localStorage.getItem("ah:tab");if(t&&TABS.some(x=>x[0]===t))S.tab=t}catch(e){}
+{const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h))S.tab=h}
+
+/* ---------- loading ---------- */
+function errMsg(e){const c=e&&e.code;
+  return c==="needs_reauth"?"Google Sheets needs reconnecting: claude.ai Settings → Connectors."
+  :c==="server_not_connected"?"Add Google Sheets in claude.ai Settings → Connectors, then reload."
+  :c==="approval_required"||c==="not_in_manifest"||c==="consent_required"?"Allow this page to use Google Sheets when Claude asks, then tap Refresh."
+  :c==="server_unavailable"?"Google Sheets didn't answer. Wait a moment and tap Refresh."
+  :"Couldn't reach Google Sheets ("+(c||"error")+"). Tap Refresh to try again."}
+function showBanner(msg){const b=$("banner");if(!msg){b.hidden=true;b.className="banner";return}b.hidden=false;b.className="banner warn";b.textContent=msg}
+async function getRange(range){const r=await S.mcp.callTool(SRV,"get_values",{spreadsheetId:SID,range},{cache:false});return (r.payload&&r.payload.values)||[]}
+
+const connected=n=>/^connected/i.test(n)&&!/no answer|voicemail|call control/i.test(n);
+function parseTracker(v){return v.filter(r=>r[0]||r[1]).map(r=>{const notes=String(r[7]||"");
+  return {date:parseDate(r[0]),type:String(r[1]||"").trim(),name:String(r[2]||"").trim(),premium:num(r[5]),source:String(r[6]||"").trim(),
+    notes,disp:notes.split("|")[0].trim(),conn:connected(notes),interview:/interview/i.test(notes),list:String(r[9]||"").trim()}}).filter(r=>r.date)}
+function statusOf(o){o=String(o||"").trim();if(!o)return "Untouched";
+  if(/booked/i.test(o))return "Booked"; if(/unreachable|bad number/i.test(o))return "Unreachable";
+  if(/not interested|not for me/i.test(o))return "Not interested";
+  if(/text reply|talked|will call|mail it|located will|call me/i.test(o))return "Follow-up";
+  return "No answer"}
+function parseLeads(v){return v.filter(r=>r[2]).map(r=>({inbox:String(r[0]||"").trim(),type:String(r[1]||"").trim(),name:String(r[2]).trim(),phone:String(r[3]||"").trim(),prov:String(r[4]||"").trim(),
+  dials:num(r[6]),texts:num(r[8]),pres:parseDate(r[9],2026),outcome:String(r[10]||"").trim(),status:statusOf(r[10])}))}
+function parseQueue(v){return v.filter(r=>r[4]).map(r=>({type:String(r[1]||"").trim(),prov:String(r[2]||"").trim(),cohort:String(r[3]||"").trim(),name:String(r[4]).trim(),phone:String(r[5]||"").trim(),
+  block:String(r[6]||"").trim(),next:String(r[9]||"").trim(),step:String(r[9]||"").split(/ - | – /)[0].trim()||"No next step",notes:String(r[10]||"").trim()}))}
+const SK=["dials","conn","texts","replies","made","shown","noshow","pres","sales","alp"];
+function parseStats(v){if(!v.length)return null;const h=(v[0]||[]).map(x=>String(x||""));
+  const map={dials:/^dials/i,conn:/connection/i,texts:/texts sent/i,replies:/repl/i,made:/made/i,shown:/shown/i,noshow:/no-?show/i,pres:/^presentations/i,sales:/^sales/i,alp:/alp/i};
+  const col={};for(const k in map){const i=h.findIndex(x=>map[k].test(x));if(i>0)col[k]=i}
+  const mk=r=>{const o={};SK.forEach(k=>o[k]=col[k]!=null?num(r[col[k]]):0);return o};
+  const out={base:null,baseLabel:"",days:[]};
+  for(const r of v.slice(1)){const a=String(r[0]||"").trim();if(!a)continue;if(/^cumulative/i.test(a))break;
+    if(/^mtd/i.test(a)){out.base=mk(r);out.baseLabel=a;continue}
+    const d=parseDate(a,2026);if(d){const o=mk(r);o.date=d;out.days.push(o)}}
+  out.days.sort((x,y)=>x.date<y.date?-1:1);return out}
+function totals(){const st=S.stats;if(!st)return null;const t={};SK.forEach(k=>t[k]=(st.base?st.base[k]:0)+st.days.reduce((a,d)=>a+d[k],0));return t}
+
+async function load(){
+  $("sync").textContent="Loading…";
+  if(!S.mcp){try{S.mcp=(window.claude&&window.claude.use)?await window.claude.use("mcp"):null}catch(e){S.mcp=null}}
+  if(!S.mcp){S.loaded=true;showBanner("This page reads your Master Lead/Activity Tracker sheet, so open it inside Claude (claude.ai) to see your data.");$("sync").textContent="Not connected";renderAll();return}
+  const jobs={tracker:getRange("Tracker!A2:J5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),stats:getRange("Stats!A5:L35")};
+  const keys=Object.keys(jobs), res=await Promise.allSettled(keys.map(k=>jobs[k]));
+  S.err={};let bad=0,first=null;
+  res.forEach((r,i)=>{const k=keys[i];if(r.status==="fulfilled"){const v=r.value;
+      if(k==="tracker")S.tracker=parseTracker(v);else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else S.stats=parseStats(v)}
+    else{S.err[k]=r.reason;bad++;first=first||r.reason}});
+  S.loaded=true;S.at=new Date();
+  showBanner(bad===keys.length?errMsg(first):bad?"Some data didn't load ("+keys.filter(k=>S.err[k]).join(", ")+"). "+errMsg(first):"");
+  $("sync").innerHTML=`Updated ${S.at.toLocaleTimeString("en-CA",{hour:"numeric",minute:"2-digit"})}<button id="refresh">Refresh</button>`;
+  renderAll();
+}
+
+/* ---------- shared pieces ---------- */
+const kpi=(label,val,sub,frac)=>`<div class="kpi"><h3>${esc(label)}</h3><div class="v">${val}</div><div class="s">${sub||""}</div>${frac!=null?`<div class="bar"><i style="width:${Math.max(0,Math.min(1,frac))*100}%"></i></div>`:""}</div>`;
+const sec=(title,note,body)=>`<div class="sec"><div class="hd"><h2>${esc(title)}</h2>${note?`<span class="n">${note}</span>`:""}</div>${body}</div>`;
+const empty=(t,b)=>`<div class="empty"><b>${t}</b><br>${b}</div>`;
+function table(heads,rows,o){o=o||{};
+  return `<div class="tablewrap"><table><thead><tr>${heads.map((h,i)=>`<th${i===0||(o.left||[]).includes(i)?' class="l"':""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`}
+const tr=(cells,o)=>`<tr${o&&o.total?' class="total"':""}>${cells.map((c,i)=>`<td class="${i===0||(o&&o.left&&o.left.includes(i))?"l":""}${o&&o.wrap&&o.wrap.includes(i)?" wrap-t":""}">${c}</td>`).join("")}</tr>`;
+const STATUS=[["Booked","#1B3A2B"],["Follow-up","#B8934A"],["No answer","#6F8F72"],["Not interested","#B77C72"],["Unreachable","#A9B2AC"],["Untouched","#DDE5DE"]];
+const statusChip=s=>`<span class="chip ${s==="Booked"?"booked":s==="Follow-up"?"follow":s==="Not interested"?"ni":""}">${esc(s)}</span>`;
+function pipeline(leads){const c={};STATUS.forEach(([s])=>c[s]=0);leads.forEach(l=>c[l.status]=(c[l.status]||0)+1);const tot=leads.length||1;
+  return `<div class="meter" role="img" aria-label="Lead status mix">${STATUS.map(([s,col])=>c[s]?`<i style="width:${c[s]/tot*100}%;background:${col}" title="${esc(s)}: ${c[s]}"></i>`:"").join("")}</div>
+  <div class="legend">${STATUS.map(([s,col])=>`<span><i style="background:${col}"></i>${esc(s)} <b>${c[s]||0}</b></span>`).join("")}</div>`}
+const srcNote=(...ks)=>{const k=ks.find(x=>S.err[x]);return k?`<div class="banner warn">This section couldn't load the ${esc(k)} data. ${esc(errMsg(S.err[k]))}</div>`:""};
+
+/* ---------- November numbers ---------- */
+function nov(){const t=S.tracker.filter(r=>r.date.startsWith(PLAN.month));const by=ty=>t.filter(r=>r.type===ty);
+  const apps=by("Application Submitted"), st=totals();
+  const presT=by("Presentation Held").length;
+  return {rows:t,calls:by("Call").filter(r=>true),conv:by("Call").filter(r=>r.conn).length,booked:by("Appointment Set").filter(r=>!r.interview),pres:presT,
+    presFromStats:!presT&&st?st.shown:0,noshow:by("No-Show").length,apps,issued:by("Policy Issued"),alp:apps.reduce((a,r)=>a+r.premium,0)}}
+function weekNums(w,N){const inW=r=>r.date>=w.start&&r.date<=w.end;const apps=N.apps.filter(inW);
+  return {pres:S.tracker.filter(r=>r.type==="Presentation Held"&&inW(r)).length,sales:apps.length,alp:apps.reduce((a,r)=>a+r.premium,0)}}
+
+/* ---------- Dashboard ---------- */
+function renderDashboard(){
+  const N=nov(), st=totals(), pres=N.pres||N.presFromStats, wk=weekOf(TODAY)||PLAN.weeks[PLAN.weeks.length-1];
+  const wn=weekNums(wk,N), up=S.leads.filter(l=>l.pres&&l.pres>=TODAY).sort((a,b)=>a.pres<b.pres?-1:1);
+  const follow=S.leads.filter(l=>l.status==="Follow-up"), callBack=S.queue.filter(q=>/^call back first/i.test(q.step));
+  const stepCounts={};S.queue.forEach(q=>stepCounts[q.step]=(stepCounts[q.step]||0)+1);
+  const steps=Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const remaining=WORKDAYS.filter(d=>d>=TODAY).length||1;
+  $("p-dashboard").innerHTML=
+   sec("November: $20k ALP",`${fd(PLAN.weeks[0].start)} to ${fd(PLAN.weeks[3].end)} · ${remaining} working days left`,
+     `<div class="kpis">${kpi("ALP submitted",money(N.alp),`of ${money(PLAN.goal)} · ${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day to go`,N.alp/PLAN.goal)}
+       ${kpi("Presentations",pres,`of ${PLAN.pres} planned${N.pres?"":N.presFromStats?" · bookings shown":""}`,pres/PLAN.pres)}
+       ${kpi("Sales",N.apps.length,`of ${PLAN.sales} planned`,N.apps.length/PLAN.sales)}
+       ${kpi("Dials",st?st.dials.toLocaleString("en-CA"):"—",st?`${pct(st.conn,st.dials)} reach someone`:"")}
+       ${kpi("Bookings",st?st.made:"—",st?`${pct(st.shown,st.made)} showed up`:"")}</div>`+srcNote("tracker","stats"))+
+   sec("This week",esc(wk.label),
+     table(["","Plan","So far"],[tr(["Presentations",wk.pres,wn.pres]),tr(["Sales",wk.sales,wn.sales]),tr(["ALP",money(PLAN.avg*wk.sales),money(wn.alp)])]))+
+   `<div class="two">`+
+   sec("Next presentations",up.length?`${up.length} booked`:"",
+     up.length?`<div class="list">${up.slice(0,7).map(l=>`<div class="item"><span class="d">${fd(l.pres)}</span><span class="p">${esc(l.name)}</span><span class="m">${esc(l.type)}</span></div>`).join("")}</div>`
+       :empty("Nothing booked yet.","Presentation dates come from the Presentation Date column on All Leads Master."))+
+   sec("Needs a follow-up",`${follow.length} ${follow.length===1?"lead":"leads"} replied`,
+     follow.length?`<div class="list">${follow.slice(0,6).map(l=>`<div class="item" style="grid-template-columns:minmax(0,1fr) auto"><span><span class="p">${esc(l.name)}</span><br><span class="m">${esc(l.outcome.split(";")[0])}</span></span>${statusChip(l.type)}</div>`).join("")}</div>`
+       :empty("No replies waiting.","Leads that texted back or talked to you show up here."))+
+   `</div>`+
+   sec("Lead pipeline",`${S.leads.length} leads on All Leads Master`,S.leads.length?pipeline(S.leads):empty("No leads loaded.","The All Leads Master tab had no rows."))+
+   sec("Call queue",`${S.queue.length} on Call Lists${callBack.length?` · ${callBack.length} to call back first`:""}`,
+     steps.length?table(["Next step","Leads"],steps.map(([s,c])=>tr([esc(s),c]))):empty("The call queue is empty.","Call Lists has no rows."))
+}
+
+/* ---------- Leads ---------- */
+function leadFilter(){const f=S.lf,q=f.q.trim().toLowerCase();
+  const pass=x=>(f.type==="all"||x.type===f.type)&&(!q||(x.name+" "+x.phone+" "+(x.outcome||x.next||"")).toLowerCase().includes(q));
+  return f.view==="all"?S.leads.filter(x=>pass(x)&&(f.status==="all"||x.status===f.status)):S.queue.filter(x=>pass(x)&&(f.status==="all"||x.step===f.status))}
+function leadResults(){const f=S.lf, rows=leadFilter(), shown=rows.slice(0,f.limit);
+  if(!rows.length)return empty("No leads match.","Clear the search or pick another type.");
+  const body=f.view==="all"
+   ?table(["Lead","Type","Prov","Dials","Texts","Status","Presentation","Last outcome"],shown.map(l=>tr([esc(l.name)+`<br><span class="dim">${esc(l.phone)}</span>`,esc(l.type),esc(l.prov),l.dials,l.texts,statusChip(l.status),l.pres?fd(l.pres):"",esc(l.outcome.split(";").pop().trim())],{left:[1,2,5,7],wrap:[7]})),{left:[1,2,5,7]})
+   :table(["Lead","Type","Prov","Cohort","Best block","Next step"],shown.map(l=>tr([esc(l.name)+`<br><span class="dim">${esc(l.phone)}</span>`,esc(l.type),esc(l.prov),esc(l.cohort),esc(l.block),esc(l.next)],{left:[1,2,3,4,5],wrap:[5]})),{left:[1,2,3,4,5]});
+  return `<div class="n dim" style="font-size:12.5px;margin-bottom:6px">Showing ${shown.length} of ${rows.length}</div>${body}${rows.length>shown.length?`<button class="more" id="lead-more">Show 40 more</button>`:""}`}
+function renderLeads(){
+  const f=S.lf, types=[...new Set((f.view==="all"?S.leads:S.queue).map(x=>x.type).filter(Boolean))].sort();
+  const opts=f.view==="all"?["all",...STATUS.map(s=>s[0])]:["all",...[...new Set(S.queue.map(q=>q.step))].sort()];
+  const byType=types.map(t=>{const L=S.leads.filter(l=>l.type===t);return tr([esc(t),L.length,L.reduce((a,l)=>a+l.dials,0),L.reduce((a,l)=>a+l.texts,0),L.filter(l=>l.status==="Booked").length,L.filter(l=>l.status==="Follow-up").length,pct(L.filter(l=>l.status==="Booked").length,L.length)])});
+  $("p-leads").innerHTML=srcNote("leads","queue")+
+   sec("Pipeline",`${S.leads.length} leads`,S.leads.length?pipeline(S.leads):"")+
+   sec("By lead type","",table(["Type","Leads","Dials","Texts","Booked","Follow-up","Booked %"],byType))+
+   sec("Lead list","",`<div class="row"><div class="seg" role="group" aria-label="List"><button data-lv="all" aria-pressed="${f.view==="all"}">All leads</button><button data-lv="queue" aria-pressed="${f.view==="queue"}">Call queue</button></div>
+     <select id="lf-type" aria-label="Lead type"><option value="all">All types</option>${types.map(t=>`<option${f.type===t?" selected":""}>${esc(t)}</option>`).join("")}</select>
+     <select id="lf-status" aria-label="${f.view==="all"?"Status":"Next step"}">${opts.map(o=>`<option value="${esc(o)}"${f.status===o?" selected":""}>${o==="all"?(f.view==="all"?"Any status":"Any next step"):esc(o)}</option>`).join("")}</select>
+     <input id="lf-q" type="search" placeholder="Search name or phone" value="${esc(f.q)}" aria-label="Search leads"></div><div id="lead-results">${leadResults()}</div>`)}
+
+/* ---------- Activity ---------- */
+function renderActivity(){
+  const N=nov(), T=S.tracker;
+  if(!T.length){$("p-activity").innerHTML=srcNote("tracker")+sec("Activity","",empty("The Tracker tab has no rows yet.","Calls from Kixie, the log form and Calendly bookings are added by the n8n flows. They appear here as they arrive."));return}
+  const days={};T.forEach(r=>{const d=days[r.date]=days[r.date]||{date:r.date,dials:0,conv:0,book:0,pres:0,ns:0,apps:0,alp:0};
+    if(r.type==="Call"){d.dials++;if(r.conn)d.conv++}else if(r.type==="Appointment Set"&&!r.interview)d.book++;else if(r.type==="Presentation Held")d.pres++;
+    else if(r.type==="No-Show")d.ns++;else if(r.type==="Application Submitted"){d.apps++;d.alp+=r.premium}});
+  const drows=Object.values(days).sort((a,b)=>a.date<b.date?1:-1).slice(0,14);
+  const lists={};T.filter(r=>r.type==="Call"&&r.list).forEach(r=>{const l=lists[r.list]=lists[r.list]||{n:r.list,d:0,c:0};l.d++;if(r.conn)l.c++});
+  const recent=[...T].reverse().slice(0,15);
+  $("p-activity").innerHTML=srcNote("tracker")+
+   sec("November so far",`${N.rows.length} entries`,`<div class="kpis">${kpi("Dials",N.calls.length,"Kixie calls")}${kpi("Conversations",N.conv,pct(N.conv,N.calls.length)+" of dials")}${kpi("Bookings",N.booked.length,"recruiting interviews left out")}${kpi("Presentations",N.pres,N.noshow+" no-shows")}${kpi("Applications",N.apps.length,money(N.alp)+" ALP")}</div>`)+
+   sec("By day","last 14 days with activity",table(["Day","Dials","Convos","Bookings","Pres.","No-shows","Apps","ALP"],drows.map(d=>tr([fd(d.date),d.dials,d.conv,d.book,d.pres,d.ns,d.apps,money(d.alp)]))))+
+   (Object.keys(lists).length?sec("By power list","",table(["List","Dials","Convos","Reach"],Object.values(lists).sort((a,b)=>b.d-a.d).map(l=>tr([esc(l.n),l.d,l.c,pct(l.c,l.d)])))):"")+
+   sec("Latest entries","",`<div class="list">${recent.map(r=>`<div class="item"><span class="d">${fd(r.date)}</span><span><span class="p">${esc(r.type)}</span> <span class="dim">${esc(r.name)}</span><br><span class="m">${esc(r.disp)}</span></span><span class="dim">${esc(r.source)}</span></div>`).join("")}</div>`)
+}
+
+/* ---------- Stats ---------- */
+function barChart(days){
+  if(!days.length)return "";const W=640,H=210,L=38,R=10,T=14,B=30,mx=Math.max(10,...days.map(d=>d.dials)),step=Math.pow(10,Math.floor(Math.log10(mx))),top=Math.ceil(mx/step)*step;
+  const y=v=>T+(H-T-B)*(1-v/top), bw=Math.min(46,(W-L-R)/days.length/2.6), cw=(W-L-R)/days.length;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Dials and conversations by day" style="min-width:${Math.min(W,120+days.length*60)}px">`;
+  [0,.5,1].forEach(f=>{const v=top*f;s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#DDE5DE"/><text class="ax" x="${L-6}" y="${y(v)+4}" text-anchor="end">${Math.round(v)}</text>`});
+  days.forEach((d,i)=>{const cx=L+cw*i+cw/2;
+    s+=`<rect x="${cx-bw-1}" y="${y(d.dials)}" width="${bw}" height="${H-B-y(d.dials)}" fill="#2F5D43" rx="2"><title>${fd(d.date)}: ${d.dials} dials</title></rect><text class="lbl" x="${cx-bw/2-1}" y="${y(d.dials)-4}" text-anchor="middle">${d.dials}</text>`+
+       `<rect x="${cx+1}" y="${y(d.conn)}" width="${bw}" height="${H-B-y(d.conn)}" fill="#B8934A" rx="2"><title>${fd(d.date)}: ${d.conn} conversations</title></rect><text class="lbl" x="${cx+bw/2+1}" y="${y(d.conn)-4}" text-anchor="middle">${d.conn}</text>`+
+       `<text class="ax" x="${cx}" y="${H-10}" text-anchor="middle">${fd(d.date)}</text>`});
+  return `<div class="chartbox">${s}</svg></div><div class="legend"><span><i style="background:#2F5D43"></i>Dials</span><span><i style="background:#B8934A"></i>Conversations</span></div>`}
+function renderStats(){
+  const st=S.stats, t=totals();
+  if(!st||!t){$("p-stats").innerHTML=srcNote("stats")+sec("Stats","",empty("No daily stats yet.","Fill in one row per day on the Stats tab of the sheet."));return}
+  const rate=(a,b,f)=>[a,b,f];
+  const rates=[["Dials that reach someone",pct(t.conn,t.dials),"Conversations ÷ dials"],["Texts that get a reply",pct(t.replies,t.texts),"Replies ÷ texts sent"],["Conversations that book",pct(t.made,t.conn),"Bookings ÷ conversations"],
+    ["Bookings that show",pct(t.shown,t.made),"Shown ÷ bookings made"],["Bookings that no-show",pct(t.noshow,t.made),"No-shows ÷ bookings made"],["Dials per conversation",n1(t.conn?t.dials/t.conn:NaN),"Dials ÷ conversations"],["Dials per booking",n1(t.made?t.dials/t.made:NaN),"Dials ÷ bookings made"]];
+  $("p-stats").innerHTML=srcNote("stats")+
+   sec("Running totals",st.base?`starts from ${esc(st.baseLabel.replace(/^MTD to /i,"MTD to "))}`:"",`<div class="kpis">${kpi("Dials",t.dials.toLocaleString("en-CA"),"")}${kpi("Conversations",t.conn,pct(t.conn,t.dials)+" of dials")}${kpi("Texts sent",t.texts,pct(t.replies,t.texts)+" replied")}${kpi("Bookings made",t.made,pct(t.shown,t.made)+" showed")}${kpi("Shown",t.shown,t.noshow+" no-shows")}</div>`)+
+   sec("Rates","",table(["Measure","Result","How"],rates.map(r=>tr([esc(r[0]),`<b>${r[1]}</b>`,`<span class="dim">${esc(r[2])}</span>`],{left:[2]})),{left:[2]}))+
+   sec("Daily","from the Stats tab, month-to-date row not included",st.days.length?barChart(st.days):empty("No daily rows yet.","Add a row for each day you work."))+
+   (st.days.length?table(["Day","Dials","Convos","Texts","Replies","Booked","Shown","No-show"],[...st.days].reverse().map(d=>tr([fd(d.date),d.dials,d.conn,d.texts,d.replies,d.made,d.shown,d.noshow]))):"")
+}
+
+/* ---------- Production ---------- */
+function prodChart(N){
+  const W=640,H=230,L=46,R=64,T=14,B=30,n=WORKDAYS.length,x=i=>L+(W-L-R)*(i/(n-1)),y=v=>T+(H-T-B)*(1-v/PLAN.goal);
+  let cum=0;const plan=WORKDAYS.map(d=>(cum+=planDay(d)));cum=0;
+  const act=WORKDAYS.map(d=>(cum+=N.apps.filter(r=>r.date===d).reduce((a,r)=>a+r.premium,0)));
+  const ti=WORKDAYS.filter(d=>d<=TODAY).length-1;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Cumulative ALP against plan" style="min-width:480px">`;
+  [0,.5,1].forEach(f=>{const v=PLAN.goal*f;s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#DDE5DE"/><text class="ax" x="${L-6}" y="${y(v)+4}" text-anchor="end">$${v/1000}k</text>`});
+  [0,5,10,15,20].filter(i=>i<n).forEach(i=>s+=`<text class="ax" x="${x(i)}" y="${H-10}" text-anchor="middle">${fd(WORKDAYS[i])}</text>`);
+  s+=`<polyline fill="none" stroke="#B8934A" stroke-width="2" stroke-dasharray="5 4" points="${plan.map((v,i)=>x(i)+","+y(v)).join(" ")}"/>`+
+     `<text class="lbl" x="${x(n-1)+6}" y="${y(plan[n-1])+4}" style="fill:#7A5E22">Plan</text>`;
+  if(ti>=0){s+=`<polyline fill="none" stroke="#2F5D43" stroke-width="2.5" points="${act.slice(0,ti+1).map((v,i)=>x(i)+","+y(v)).join(" ")}"/><circle cx="${x(ti)}" cy="${y(act[ti])}" r="4" fill="#2F5D43"/>`+
+     `<text class="lbl" x="${x(ti)+7}" y="${y(act[ti])-8}">${money(act[ti])}</text>`}
+  return `<div class="chartbox">${s}</svg></div><div class="legend"><span><i style="background:#2F5D43"></i>Actual ALP submitted</span><span><i style="background:#B8934A"></i>Plan, spread over the weekdays of each week</span></div>`}
+function renderProduction(){
+  const N=nov(), pres=N.pres||N.presFromStats, remaining=WORKDAYS.filter(d=>d>=TODAY).length||1, sales=N.apps.length;
+  const wrows=PLAN.weeks.map(w=>{const a=weekNums(w,N), cur=TODAY>=w.start&&TODAY<=w.end;
+    return tr([esc(w.label)+(cur?` <span class="chip booked">now</span>`:""),w.pres,a.pres,w.sales,a.sales,money(PLAN.avg*w.sales),money(a.alp)])});
+  $("p-production").innerHTML=srcNote("tracker")+
+   sec("November production",`goal ${money(PLAN.goal)}`,`<div class="kpis">${kpi("ALP submitted",money(N.alp),pct(N.alp,PLAN.goal)+" of goal",N.alp/PLAN.goal)}${kpi("Policies",sales,`${N.issued.length} issued · plan ${PLAN.sales}`,sales/PLAN.sales)}
+      ${kpi("Presentations",pres,`plan ${PLAN.pres}${N.pres?"":N.presFromStats?" · bookings shown":""}`,pres/PLAN.pres)}${kpi("Close rate",pres?pct(sales,pres):"—",`plan ${Math.round(PLAN.close*100)}%`)}${kpi("Still needed",money(Math.max(0,PLAN.goal-N.alp)),`${money(Math.max(0,PLAN.goal-N.alp)/remaining)} per working day`)}</div>`)+
+   sec("Against plan","",prodChart(N))+
+   sec("Week by week","",table(["Week","Pres. plan","Pres.","Sales plan","Sales","ALP plan","ALP"],wrows))+
+   `<div class="banner">Plan: ${money(PLAN.avg)} average policy, ${Math.round(PLAN.close*100)}% close rate, ${PLAN.pres} presentations, ${WORKDAYS.length} weekdays. Sales and ALP count Application Submitted entries; presentations count Presentation Held entries, or bookings shown on the Stats tab until those are logged.</div>`
+}
+
+/* ---------- shell ---------- */
+const R={dashboard:renderDashboard,leads:renderLeads,activity:renderActivity,stats:renderStats,production:renderProduction};
+function renderTabs(){$("tabs").innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.tab===k}">${esc(l)}</button>`).join("")}
+function renderAll(){renderTabs();TABS.forEach(([k])=>{$("p-"+k).hidden=k!==S.tab});if(!S.loaded)return;TABS.forEach(([k])=>{try{R[k]()}catch(e){$("p-"+k).innerHTML=`<div class="banner warn">This tab couldn't be drawn (${esc(e&&e.message)}). Tap Refresh.</div>`}})}
+function setTab(k){S.tab=k;try{localStorage.setItem("ah:tab",k)}catch(e){}try{history.replaceState(null,"","#"+k)}catch(e){}renderTabs();TABS.forEach(([t])=>{$("p-"+t).hidden=t!==k});window.scrollTo(0,0)}
+
+document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;
+  if(t.dataset.tab)return setTab(t.dataset.tab);
+  if(t.id==="refresh")return load();
+  if(t.dataset.lv){S.lf={...S.lf,view:t.dataset.lv,status:"all",type:"all",limit:40};return renderLeads()}
+  if(t.id==="lead-more"){S.lf.limit+=40;$("lead-results").innerHTML=leadResults()}});
+document.addEventListener("change",e=>{if(e.target.id==="lf-type"){S.lf.type=e.target.value;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
+  if(e.target.id==="lf-status"){S.lf.status=e.target.value;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}});
+document.addEventListener("input",e=>{if(e.target.id==="lf-q"){S.lf.q=e.target.value;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}});
+window.addEventListener("hashchange",()=>{const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h)&&h!==S.tab)setTab(h)});
+
+renderTabs();$("p-"+S.tab).hidden=false;TABS.forEach(([k])=>{$("p-"+k).hidden=k!==S.tab});
+load();
+})();
+</script>
