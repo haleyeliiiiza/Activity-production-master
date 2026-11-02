@@ -21,9 +21,14 @@ Manual entry ────────────────┘                
 
 | Tab | What it shows | Sheet tabs it reads |
 |---|---|---|
-| Dashboard | November goal, this week vs. plan, next presentations, follow-ups, pipeline, call queue | all four below |
-| Leads | Pipeline by status and lead type, searchable lead list, call queue by next step | All Leads Master, Call Lists |
-| Activity | Dials, conversations, bookings, presentations by day and by power list, latest entries | Tracker |
+| Dashboard | November goal, today's plan, this week vs. plan, next presentations, follow-ups, pipeline, call queue | all of the below |
+| Nov 20k plan | The plan from the sheet with live progress and a week-by-week table | November 20k ALP Plan, Tracker |
+| Leads | Pipeline by status and lead type, searchable lead list | All Leads Master |
+| Call list | Cohorts, next steps, filters by type, province, cohort and next step | Call Lists |
+| Weekly schedule | Day-by-day plan, from today or all days, with script links | Weekly Schedule |
+| Cadence | Text and call steps with what to do on no answer, interest or refusal | Cadence |
+| Scripts | Text, call and objection scripts with copy buttons and draft flags | Scripts |
+| Activity | Dials, conversations, bookings, presentations by day and power list, latest entries | Tracker |
 | Stats | Running totals, conversion rates, daily dials and conversations | Stats |
 | Production | ALP, policies and presentations against the $20k plan, weekly plan table | Tracker |
 

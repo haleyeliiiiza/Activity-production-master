@@ -42,6 +42,7 @@ select,input{font:500 14px var(--f-ui);color:var(--ink);background:#fff;border:1
 .seg button[aria-pressed="true"]{background:var(--forest);color:#fff}
 .seg button:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
 .sec{display:grid;gap:10px;min-width:0}
+.sec>*{min-width:0}
 .sec .hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
 .sec .hd .n{font-size:12.5px;color:var(--muted)}
 
@@ -89,6 +90,35 @@ td.neg{color:var(--neg)} td.dim,.dim{color:var(--muted)}
 svg text{font-family:var(--f-ui)}
 .ax{fill:var(--muted);font-size:11px}
 .lbl{fill:var(--forest);font-size:11.5px;font-weight:600}
+button.chip{border:0;cursor:pointer;font-family:var(--f-ui)}
+button.chip:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.srow{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr);gap:4px 18px;padding:12px 0;border-top:1px solid var(--line)}
+.srow .stime{font-size:13px;color:var(--muted)}
+.srow .p{font-weight:600}
+.srow .m{font-size:13px;color:var(--muted)}
+.srow .snote{font-size:14px;line-height:1.5;margin-top:4px;overflow-wrap:anywhere}
+.day{display:grid;gap:4px}
+.day .dh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.step{display:grid;gap:8px;padding:14px 0;border-top:1px solid var(--line)}
+.step .sh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.step .sh b{font:600 19px var(--f-display);color:var(--forest)}
+.step p{margin:0;max-width:75ch}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px 22px}
+.sgrid>div{display:grid;gap:3px;font-size:13.5px;align-content:start}
+details.scr{border-top:1px solid var(--line);padding:2px 0}
+details.scr summary{cursor:pointer;list-style:none;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:11px 0}
+details.scr summary::-webkit-details-marker{display:none}
+details.scr summary::before{content:"+";color:var(--sage);font-weight:700;width:12px}
+details.scr[open] summary::before{content:"–"}
+details.scr summary:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+details.scr .sn{font-weight:600}
+.scr .use{font-size:13px;color:var(--muted);margin:0 0 8px;max-width:75ch}
+.scr .txt{white-space:pre-wrap;background:var(--mist);border-radius:8px;padding:12px 14px;margin:0 0 10px;max-width:75ch;font-size:14px;line-height:1.55;overflow-wrap:anywhere}
+.scr .cp{all:unset;cursor:pointer;color:var(--green);font-weight:600;font-size:13.5px;margin-bottom:10px;display:inline-block}
+.scr .cp:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.nt{display:grid;gap:4px;padding:12px 0;border-top:1px solid var(--line);max-width:80ch}
+.nt p{margin:0;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+@media (max-width:620px){.srow{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:520px){h1{font-size:27px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -101,7 +131,12 @@ svg text{font-family:var(--f-ui)}
 <main>
   <div id="banner" class="banner" hidden></div>
   <section class="panel" id="p-dashboard"></section>
+  <section class="panel" id="p-plan" hidden></section>
   <section class="panel" id="p-leads" hidden></section>
+  <section class="panel" id="p-calllist" hidden></section>
+  <section class="panel" id="p-schedule" hidden></section>
+  <section class="panel" id="p-cadence" hidden></section>
+  <section class="panel" id="p-scripts" hidden></section>
   <section class="panel" id="p-activity" hidden></section>
   <section class="panel" id="p-stats" hidden></section>
   <section class="panel" id="p-production" hidden></section>
@@ -114,7 +149,7 @@ svg text{font-family:var(--f-ui)}
 // Sheet ID is filled in when the page is published (see README). It is never committed to the public repo.
 const SID="__SHEET_ID__", SRV="Google Sheets";
 // Add a tab: append it here, add a <section id="p-NAME"> above and a render function below.
-const TABS=[["dashboard","Dashboard"],["leads","Leads"],["activity","Activity"],["stats","Stats"],["production","Production"]];
+const TABS=[["dashboard","Dashboard"],["plan","Nov 20k plan"],["leads","Leads"],["calllist","Call list"],["schedule","Weekly schedule"],["cadence","Cadence"],["scripts","Scripts"],["activity","Activity"],["stats","Stats"],["production","Production"]];
 // November 2026 plan, from the "November 20k ALP Plan" tab.
 const PLAN={month:"2026-11",goal:20000,avg:1000,close:0.30,pres:67,sales:20,
   weeks:[{label:"Nov 2–6",start:"2026-11-02",end:"2026-11-06",pres:16,sales:5},{label:"Nov 9–13",start:"2026-11-09",end:"2026-11-13",pres:16,sales:5},
@@ -144,8 +179,8 @@ const weekOf=d=>PLAN.weeks.find(w=>d>=w.start&&d<=w.end);
 const planDay=d=>{const w=weekOf(d);if(!w)return 0;const n=WORKDAYS.filter(x=>x>=w.start&&x<=w.end).length;return PLAN.avg*w.sales/n};
 
 /* ---------- state ---------- */
-const S={mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,
-  lf:{view:"all",type:"all",status:"all",q:"",limit:40}};
+const S={mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,sched:[],cadence:[],scripts:[],plan:[],
+  lf:{type:"all",status:"all",q:"",limit:40},cf:{type:"all",prov:"all",cohort:"all",step:"all",q:"",limit:40},sf:{view:"upcoming"},sc:{q:""}};
 try{const t=localStorage.getItem("ah:tab");if(t&&TABS.some(x=>x[0]===t))S.tab=t}catch(e){}
 {const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h))S.tab=h}
 
@@ -171,7 +206,14 @@ function statusOf(o){o=String(o||"").trim();if(!o)return "Untouched";
 function parseLeads(v){return v.filter(r=>r[2]).map(r=>({inbox:String(r[0]||"").trim(),type:String(r[1]||"").trim(),name:String(r[2]).trim(),phone:String(r[3]||"").trim(),prov:String(r[4]||"").trim(),
   dials:num(r[6]),texts:num(r[8]),pres:parseDate(r[9],2026),outcome:String(r[10]||"").trim(),status:statusOf(r[10])}))}
 function parseQueue(v){return v.filter(r=>r[4]).map(r=>({type:String(r[1]||"").trim(),prov:String(r[2]||"").trim(),cohort:String(r[3]||"").trim(),name:String(r[4]).trim(),phone:String(r[5]||"").trim(),
-  block:String(r[6]||"").trim(),next:String(r[9]||"").trim(),step:String(r[9]||"").split(/ - | – /)[0].trim()||"No next step",notes:String(r[10]||"").trim()}))}
+  block:String(r[6]||"").trim(),texts:String(r[7]||"").trim(),dials:String(r[8]||"").trim(),next:String(r[9]||"").trim(),step:String(r[9]||"").split(/ - | – /)[0].trim()||"No next step",notes:String(r[10]||"").trim()}))}
+function parseLong(s){const m=String(s).match(/([A-Za-z]{3})\w*\s+(\d{1,2}),\s*(\d{4})/);if(!m)return null;const mi=MON.findIndex(x=>x.toLowerCase()===m[1].toLowerCase());return mi<0?null:iso(m[3],mi+1,+m[2])}
+const cell=(r,i)=>String(r[i]||"").trim();
+function parseSched(v){return v.filter(r=>r.some(c=>String(c||"").trim())).map(r=>{const day=cell(r,0);
+  return {day,date:parseLong(day),actual:/actual/i.test(day),label:day.replace(/\s*-\s*ACTUAL/i,"").replace(/,\s*\d{4}$/,""),time:cell(r,1),group:cell(r,2),activity:cell(r,3),notes:cell(r,4),script:cell(r,5)}})}
+const parseCadence=v=>v.filter(r=>cell(r,0)).map(r=>({attempt:cell(r,0),when:cell(r,1),channel:cell(r,2),action:cell(r,3),none:cell(r,4),yes:cell(r,5),no:cell(r,6)}));
+const parsePlan=v=>v.filter(r=>cell(r,0)).map(r=>({label:cell(r,0),detail:cell(r,1)}));
+const parseScripts=v=>v.filter(r=>cell(r,0)).map(r=>({name:cell(r,0),use:cell(r,1),text:cell(r,2)}));
 const SK=["dials","conn","texts","replies","made","shown","noshow","pres","sales","alp"];
 function parseStats(v){if(!v.length)return null;const h=(v[0]||[]).map(x=>String(x||""));
   const map={dials:/^dials/i,conn:/connection/i,texts:/texts sent/i,replies:/repl/i,made:/made/i,shown:/shown/i,noshow:/no-?show/i,pres:/^presentations/i,sales:/^sales/i,alp:/alp/i};
@@ -188,11 +230,11 @@ async function load(){
   $("sync").textContent="Loading…";
   if(!S.mcp){try{S.mcp=(window.claude&&window.claude.use)?await window.claude.use("mcp"):null}catch(e){S.mcp=null}}
   if(!S.mcp){S.loaded=true;showBanner("This page reads your Master Lead/Activity Tracker sheet, so open it inside Claude (claude.ai) to see your data.");$("sync").textContent="Not connected";renderAll();return}
-  const jobs={tracker:getRange("Tracker!A2:J5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),stats:getRange("Stats!A5:L35")};
+  const jobs={tracker:getRange("Tracker!A2:J5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),stats:getRange("Stats!A5:L35"),sched:getRange("'Weekly Schedule'!A2:F80"),cadence:getRange("Cadence!A2:G40"),scripts:getRange("Scripts!A2:C60"),plan:getRange("'November 20k ALP Plan'!A2:B40")};
   const keys=Object.keys(jobs), res=await Promise.allSettled(keys.map(k=>jobs[k]));
   S.err={};let bad=0,first=null;
   res.forEach((r,i)=>{const k=keys[i];if(r.status==="fulfilled"){const v=r.value;
-      if(k==="tracker")S.tracker=parseTracker(v);else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else S.stats=parseStats(v)}
+      if(k==="tracker")S.tracker=parseTracker(v);else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else if(k==="sched")S.sched=parseSched(v);else if(k==="cadence")S.cadence=parseCadence(v);else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="plan")S.plan=parsePlan(v);else S.stats=parseStats(v)}
     else{S.err[k]=r.reason;bad++;first=first||r.reason}});
   S.loaded=true;S.at=new Date();
   showBanner(bad===keys.length?errMsg(first):bad?"Some data didn't load ("+keys.filter(k=>S.err[k]).join(", ")+"). "+errMsg(first):"");
@@ -230,7 +272,7 @@ function renderDashboard(){
   const follow=S.leads.filter(l=>l.status==="Follow-up"), callBack=S.queue.filter(q=>/^call back first/i.test(q.step));
   const stepCounts={};S.queue.forEach(q=>stepCounts[q.step]=(stepCounts[q.step]||0)+1);
   const steps=Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const remaining=WORKDAYS.filter(d=>d>=TODAY).length||1;
+  const remaining=WORKDAYS.filter(d=>d>=TODAY).length||1, todayRows=S.sched.filter(r=>r.date===TODAY);
   $("p-dashboard").innerHTML=
    sec("November: $20k ALP",`${fd(PLAN.weeks[0].start)} to ${fd(PLAN.weeks[3].end)} · ${remaining} working days left`,
      `<div class="kpis">${kpi("ALP submitted",money(N.alp),`of ${money(PLAN.goal)} · ${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day to go`,N.alp/PLAN.goal)}
@@ -238,6 +280,7 @@ function renderDashboard(){
        ${kpi("Sales",N.apps.length,`of ${PLAN.sales} planned`,N.apps.length/PLAN.sales)}
        ${kpi("Dials",st?st.dials.toLocaleString("en-CA"):"—",st?`${pct(st.conn,st.dials)} reach someone`:"")}
        ${kpi("Bookings",st?st.made:"—",st?`${pct(st.shown,st.made)} showed up`:"")}</div>`+srcNote("tracker","stats"))+
+   (todayRows.length?sec("Today",fd(TODAY),`<div class="list">${todayRows.map(r=>`<div class="item" style="grid-template-columns:minmax(0,1fr)"><span><span class="p">${esc(r.activity)}</span><br><span class="m">${esc(r.time)}${r.group?" · "+esc(r.group):""}</span></span></div>`).join("")}</div>`):"")+
    sec("This week",esc(wk.label),
      table(["","Plan","So far"],[tr(["Presentations",wk.pres,wn.pres]),tr(["Sales",wk.sales,wn.sales]),tr(["ALP",money(PLAN.avg*wk.sales),money(wn.alp)])]))+
    `<div class="two">`+
@@ -253,27 +296,87 @@ function renderDashboard(){
      steps.length?table(["Next step","Leads"],steps.map(([s,c])=>tr([esc(s),c]))):empty("The call queue is empty.","Call Lists has no rows."))
 }
 
+/* ---------- Nov 20k plan ---------- */
+function renderPlan(){
+  const N=nov(), pres=N.pres||N.presFromStats, remaining=WORKDAYS.filter(d=>d>=TODAY).length||1;
+  const first=S.plan.findIndex(r=>/^week plan/i.test(r.label)); let weeksDone=false;
+  const weeks=S.plan.filter(r=>/^week plan/i.test(r.label));
+  const weekTable=()=>sec("Week by week","plan from the sheet, so far from the Tracker",table(["Week","Plan","Pres. so far","Sales so far","ALP so far"],weeks.map((r,i)=>{const w=PLAN.weeks[i],a=w?weekNums(w,N):{pres:0,sales:0,alp:0};
+    return tr([esc(r.label.replace(/^week plan\s*-\s*/i,"")),esc(r.detail),a.pres,a.sales,money(a.alp)],{left:[1]})}),{left:[1]}));
+  const blocks=S.plan.map((r,i)=>{if(/^week plan/i.test(r.label)){if(weeksDone)return "";weeksDone=true;return weekTable()}
+    return `<div class="nt"><h3>${esc(r.label)}</h3>${r.detail.split(/\s*\n\s*/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join("")}</div>`}).join("");
+  $("p-plan").innerHTML=srcNote("plan","tracker")+
+   sec("November 20k ALP plan",`${money(PLAN.goal)} · ${PLAN.sales} sales · ${PLAN.pres} presentations`,
+     `<div class="kpis">${kpi("ALP so far",money(N.alp),`${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day for ${remaining} working days`,N.alp/PLAN.goal)}${kpi("Sales",N.apps.length,`of ${PLAN.sales}`,N.apps.length/PLAN.sales)}${kpi("Presentations",pres,`of ${PLAN.pres}`,pres/PLAN.pres)}${kpi("Close rate",pres?pct(N.apps.length,pres):"—","plan "+Math.round(PLAN.close*100)+"%")}</div>`)+
+   (S.plan.length?blocks:sec("Plan","",empty("The plan tab is empty.","Add the goal and weekly targets to the November 20k ALP Plan tab.")))}
+
 /* ---------- Leads ---------- */
-function leadFilter(){const f=S.lf,q=f.q.trim().toLowerCase();
-  const pass=x=>(f.type==="all"||x.type===f.type)&&(!q||(x.name+" "+x.phone+" "+(x.outcome||x.next||"")).toLowerCase().includes(q));
-  return f.view==="all"?S.leads.filter(x=>pass(x)&&(f.status==="all"||x.status===f.status)):S.queue.filter(x=>pass(x)&&(f.status==="all"||x.step===f.status))}
+const uniq=a=>[...new Set(a.filter(Boolean))].sort();
+function leadFilter(){const f=S.lf,q=f.q.trim().toLowerCase();return S.leads.filter(x=>(f.type==="all"||x.type===f.type)&&(f.status==="all"||x.status===f.status)&&(!q||(x.name+" "+x.phone+" "+x.outcome).toLowerCase().includes(q)))}
 function leadResults(){const f=S.lf, rows=leadFilter(), shown=rows.slice(0,f.limit);
   if(!rows.length)return empty("No leads match.","Clear the search or pick another type.");
-  const body=f.view==="all"
-   ?table(["Lead","Type","Prov","Dials","Texts","Status","Presentation","Last outcome"],shown.map(l=>tr([esc(l.name)+`<br><span class="dim">${esc(l.phone)}</span>`,esc(l.type),esc(l.prov),l.dials,l.texts,statusChip(l.status),l.pres?fd(l.pres):"",esc(l.outcome.split(";").pop().trim())],{left:[1,2,5,7],wrap:[7]})),{left:[1,2,5,7]})
-   :table(["Lead","Type","Prov","Cohort","Best block","Next step"],shown.map(l=>tr([esc(l.name)+`<br><span class="dim">${esc(l.phone)}</span>`,esc(l.type),esc(l.prov),esc(l.cohort),esc(l.block),esc(l.next)],{left:[1,2,3,4,5],wrap:[5]})),{left:[1,2,3,4,5]});
-  return `<div class="n dim" style="font-size:12.5px;margin-bottom:6px">Showing ${shown.length} of ${rows.length}</div>${body}${rows.length>shown.length?`<button class="more" id="lead-more">Show 40 more</button>`:""}`}
+  return `<div class="n dim" style="font-size:12.5px;margin-bottom:6px">Showing ${shown.length} of ${rows.length}</div>`+
+   table(["Lead","Type","Prov","Dials","Texts","Status","Presentation","Last outcome"],shown.map(l=>tr([esc(l.name)+`<br><span class="dim">${esc(l.phone)}</span>`,esc(l.type),esc(l.prov),l.dials,l.texts,statusChip(l.status),l.pres?fd(l.pres):"",esc(l.outcome.split(";").pop().trim())],{left:[1,2,5,7],wrap:[7]})),{left:[1,2,5,7]})+
+   (rows.length>shown.length?`<button class="more" id="lead-more">Show 40 more</button>`:"")}
 function renderLeads(){
-  const f=S.lf, types=[...new Set((f.view==="all"?S.leads:S.queue).map(x=>x.type).filter(Boolean))].sort();
-  const opts=f.view==="all"?["all",...STATUS.map(s=>s[0])]:["all",...[...new Set(S.queue.map(q=>q.step))].sort()];
+  const f=S.lf, types=uniq(S.leads.map(x=>x.type));
   const byType=types.map(t=>{const L=S.leads.filter(l=>l.type===t);return tr([esc(t),L.length,L.reduce((a,l)=>a+l.dials,0),L.reduce((a,l)=>a+l.texts,0),L.filter(l=>l.status==="Booked").length,L.filter(l=>l.status==="Follow-up").length,pct(L.filter(l=>l.status==="Booked").length,L.length)])});
-  $("p-leads").innerHTML=srcNote("leads","queue")+
+  $("p-leads").innerHTML=srcNote("leads")+
    sec("Pipeline",`${S.leads.length} leads`,S.leads.length?pipeline(S.leads):"")+
    sec("By lead type","",table(["Type","Leads","Dials","Texts","Booked","Follow-up","Booked %"],byType))+
-   sec("Lead list","",`<div class="row"><div class="seg" role="group" aria-label="List"><button data-lv="all" aria-pressed="${f.view==="all"}">All leads</button><button data-lv="queue" aria-pressed="${f.view==="queue"}">Call queue</button></div>
+   sec("All leads","from All Leads Master",`<div class="row">
      <select id="lf-type" aria-label="Lead type"><option value="all">All types</option>${types.map(t=>`<option${f.type===t?" selected":""}>${esc(t)}</option>`).join("")}</select>
-     <select id="lf-status" aria-label="${f.view==="all"?"Status":"Next step"}">${opts.map(o=>`<option value="${esc(o)}"${f.status===o?" selected":""}>${o==="all"?(f.view==="all"?"Any status":"Any next step"):esc(o)}</option>`).join("")}</select>
+     <select id="lf-status" aria-label="Status">${["all",...STATUS.map(s=>s[0])].map(o=>`<option value="${esc(o)}"${f.status===o?" selected":""}>${o==="all"?"Any status":esc(o)}</option>`).join("")}</select>
      <input id="lf-q" type="search" placeholder="Search name or phone" value="${esc(f.q)}" aria-label="Search leads"></div><div id="lead-results">${leadResults()}</div>`)}
+
+/* ---------- Call list ---------- */
+const lastDate=s=>{const d=[...String(s||"").matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g)].map(m=>iso(m[3],+m[1],+m[2])).sort();return d.length?fd(d[d.length-1]):""};
+function callFilter(){const f=S.cf,q=f.q.trim().toLowerCase();return S.queue.filter(x=>(f.type==="all"||x.type===f.type)&&(f.prov==="all"||x.prov===f.prov)&&(f.cohort==="all"||x.cohort===f.cohort)&&(f.step==="all"||x.step===f.step)&&(!q||(x.name+" "+x.phone+" "+x.notes).toLowerCase().includes(q)))}
+function callResults(){const f=S.cf, rows=callFilter(), shown=rows.slice(0,f.limit);
+  if(!rows.length)return empty("No leads match.","Clear the search or loosen a filter.");
+  return `<div class="n dim" style="font-size:12.5px;margin-bottom:6px">Showing ${shown.length} of ${rows.length}</div>`+
+   table(["Lead","Type","Prov","Cohort","Best block","Next step","Last dial","Last text"],shown.map(l=>tr([esc(l.name)+`<br><span class="dim">${esc(l.phone)}</span>`,esc(l.type),esc(l.prov),esc(l.cohort),esc(l.block),esc(l.next),lastDate(l.dials),lastDate(l.texts)],{left:[1,2,3,4,5],wrap:[5]})),{left:[1,2,3,4,5]})+
+   (rows.length>shown.length?`<button class="more" id="call-more">Show 40 more</button>`:"")}
+function renderCallList(){
+  const f=S.cf,Q=S.queue,sel=(id,label,all,vals,cur)=>`<select id="${id}" aria-label="${label}"><option value="all">${all}</option>${vals.map(v=>`<option${cur===v?" selected":""}>${esc(v)}</option>`).join("")}</select>`;
+  const cohorts=uniq(Q.map(q=>q.cohort)), steps={};Q.forEach(q=>steps[q.step]=(steps[q.step]||0)+1);
+  $("p-calllist").innerHTML=srcNote("queue")+
+   sec("Call list",`${Q.length} leads`,Q.length?`<div class="kpis">${kpi("On the list",Q.length,"from the Call Lists tab")}${cohorts.map(c=>kpi(c.replace(/^[A-Z] - /,""),Q.filter(q=>q.cohort===c).length,"cohort "+esc(c.split(" ")[0])+" · "+pct(Q.filter(q=>q.cohort===c).length,Q.length))).join("")}</div>`:empty("The call list is empty.","The Call Lists tab has no rows."))+
+   (Q.length?sec("Next step","",table(["Next step","Leads"],Object.entries(steps).sort((a,b)=>b[1]-a[1]).map(([k,c])=>tr([esc(k),c]))))+
+    sec("Leads to work","",`<div class="row">${sel("cf-type","Lead type","All types",uniq(Q.map(q=>q.type)),f.type)}${sel("cf-prov","Province","All provinces",uniq(Q.map(q=>q.prov)),f.prov)}${sel("cf-cohort","Cohort","All cohorts",cohorts,f.cohort)}${sel("cf-step","Next step","Any next step",Object.keys(steps).sort(),f.step)}
+     <input id="cf-q" type="search" placeholder="Search name, phone or notes" value="${esc(f.q)}" aria-label="Search call list"></div><div id="call-results">${callResults()}</div>`):"")}
+
+/* ---------- Weekly schedule ---------- */
+function renderSchedule(){
+  const rows=S.sched,f=S.sf,days=[];
+  rows.filter(r=>r.date).forEach(r=>{let d=days[days.length-1];if(!d||d.date!==r.date){d={date:r.date,label:r.label,actual:r.actual,rows:[]};days.push(d)}d.rows.push(r)});
+  const notes=rows.filter(r=>!r.date&&r.day!=="Note"), vis=f.view==="all"?days:days.filter(d=>d.date>=TODAY);
+  const dayHtml=d=>`<div class="day"><div class="dh"><h2>${esc(d.label)}</h2>${d.date===TODAY?'<span class="chip booked">Today</span>':d.actual?'<span class="chip">Logged</span>':d.date<TODAY?'<span class="chip">Past</span>':""}</div>`+
+    d.rows.map(r=>`<div class="srow"><div class="stime">${esc(r.time)}</div><div><div class="p">${esc(r.activity)}</div><div class="m">${esc(r.group)}</div>${r.notes?`<div class="snote">${esc(r.notes)}</div>`:""}${r.script?`<div style="margin-top:8px"><button class="chip booked" data-tab="scripts">Script: ${esc(r.script)}</button></div>`:""}</div></div>`).join("")+`</div>`;
+  const noteHtml=n=>{const parts=n.day.length>80?[n.day]:[n.time,n.group,n.activity,n.notes].filter(Boolean);return `<div class="nt"><h3>${n.day.length>80?"Note":esc(n.day)}</h3>${parts.map(x=>`<p>${esc(x)}</p>`).join("")}</div>`};
+  $("p-schedule").innerHTML=srcNote("sched")+
+   sec("Weekly schedule",days.length?`${fd(days[0].date)} to ${fd(days[days.length-1].date)}`:"",
+     `<div class="seg" role="group" aria-label="Days"><button data-sv="upcoming" aria-pressed="${f.view==="upcoming"}">From today</button><button data-sv="all" aria-pressed="${f.view==="all"}">All days</button></div>`+
+     (vis.length?vis.map(dayHtml).join(""):empty(days.length?"Nothing scheduled from today.":"The schedule is empty.",days.length?"Switch to All days to see earlier entries.":"Add rows to the Weekly Schedule tab.")))+
+   (notes.length?sec("Notes","",notes.map(noteHtml).join("")):"")}
+
+/* ---------- Cadence ---------- */
+function renderCadence(){
+  const C=S.cadence;
+  $("p-cadence").innerHTML=srcNote("cadence")+sec("Lead cadence","how often to text and call each lead",C.length?
+    C.map(c=>`<div class="step"><div class="sh"><b>${esc(c.attempt)}</b>${c.channel?`<span class="chip booked">${esc(c.channel)}</span>`:""}${c.when?`<span class="dim">${esc(c.when)}</span>`:""}</div><p>${esc(c.action)}</p>${c.none||c.yes||c.no?`<div class="sgrid"><div><h3>No answer</h3>${esc(c.none)}</div><div><h3>Interested or answers</h3>${esc(c.yes)}</div><div><h3>Not interested</h3>${esc(c.no)}</div></div>`:""}</div>`).join("")
+    :empty("No cadence yet.","Add steps to the Cadence tab."))}
+
+/* ---------- Scripts ---------- */
+const scrGroup=n=>/^(call script|voicemail)/i.test(n)?"Calls":/^objection/i.test(n)?"Objections":"Texts";
+const scrText=t=>String(t).replace(/\s(Pivot:|If yes:|Variants:)/g,"\n\n$1").replace(/\s-\s(DRAFT)/,"\n\n$1");
+function scriptItems(){const q=S.sc.q.trim().toLowerCase(),out=[];
+  ["Texts","Calls","Objections"].forEach(g=>{const L=S.scripts.map((x,i)=>({...x,i})).filter(x=>scrGroup(x.name)===g&&(!q||(x.name+" "+x.use+" "+x.text).toLowerCase().includes(q)));
+    if(!L.length)return;out.push(`<h3 style="margin-top:8px">${g}</h3>`+L.map(x=>`<details class="scr"><summary><span class="sn">${esc(x.name)}</span>${/draft/i.test(x.name+x.text)?'<span class="chip follow">Draft: approve first</span>':""}</summary><p class="use">${esc(x.use)}</p><div class="txt">${esc(scrText(x.text))}</div><button class="cp" data-copy="${x.i}">Copy</button></details>`).join(""))});
+  return out.length?out.join(""):empty("No scripts match.","Try another word.")}
+function renderScripts(){
+  $("p-scripts").innerHTML=srcNote("scripts")+sec("Scripts",`${S.scripts.length} scripts`,S.scripts.length?`<div class="row"><input id="sc-q" type="search" placeholder="Search scripts" value="${esc(S.sc.q)}" aria-label="Search scripts"></div><div id="sc-results">${scriptItems()}</div>`:empty("No scripts yet.","Add rows to the Scripts tab."))}
+async function copyText(t,btn){try{await navigator.clipboard.writeText(t);btn.textContent="Copied"}catch(e){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");btn.textContent="Copied"}catch(_){btn.textContent="Select the text and copy"}ta.remove()}setTimeout(()=>{btn.textContent="Copy"},1800)}
 
 /* ---------- Activity ---------- */
 function renderActivity(){
@@ -343,7 +446,7 @@ function renderProduction(){
 }
 
 /* ---------- shell ---------- */
-const R={dashboard:renderDashboard,leads:renderLeads,activity:renderActivity,stats:renderStats,production:renderProduction};
+const R={dashboard:renderDashboard,plan:renderPlan,leads:renderLeads,calllist:renderCallList,schedule:renderSchedule,cadence:renderCadence,scripts:renderScripts,activity:renderActivity,stats:renderStats,production:renderProduction};
 function renderTabs(){$("tabs").innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.tab===k}">${esc(l)}</button>`).join("")}
 function renderAll(){renderTabs();TABS.forEach(([k])=>{$("p-"+k).hidden=k!==S.tab});if(!S.loaded)return;TABS.forEach(([k])=>{try{R[k]()}catch(e){$("p-"+k).innerHTML=`<div class="banner warn">This tab couldn't be drawn (${esc(e&&e.message)}). Tap Refresh.</div>`}})}
 function setTab(k){S.tab=k;try{localStorage.setItem("ah:tab",k)}catch(e){}try{history.replaceState(null,"","#"+k)}catch(e){}renderTabs();TABS.forEach(([t])=>{$("p-"+t).hidden=t!==k});window.scrollTo(0,0)}
@@ -351,11 +454,17 @@ function setTab(k){S.tab=k;try{localStorage.setItem("ah:tab",k)}catch(e){}try{hi
 document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;
   if(t.dataset.tab)return setTab(t.dataset.tab);
   if(t.id==="refresh")return load();
-  if(t.dataset.lv){S.lf={...S.lf,view:t.dataset.lv,status:"all",type:"all",limit:40};return renderLeads()}
-  if(t.id==="lead-more"){S.lf.limit+=40;$("lead-results").innerHTML=leadResults()}});
-document.addEventListener("change",e=>{if(e.target.id==="lf-type"){S.lf.type=e.target.value;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
-  if(e.target.id==="lf-status"){S.lf.status=e.target.value;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}});
-document.addEventListener("input",e=>{if(e.target.id==="lf-q"){S.lf.q=e.target.value;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}});
+  if(t.dataset.sv){S.sf.view=t.dataset.sv;return renderSchedule()}
+  if(t.dataset.copy!=null){const x=S.scripts[+t.dataset.copy];return x&&copyText(x.text,t)}
+  if(t.id==="lead-more"){S.lf.limit+=40;$("lead-results").innerHTML=leadResults()}
+  if(t.id==="call-more"){S.cf.limit+=40;$("call-results").innerHTML=callResults()}});
+document.addEventListener("change",e=>{const id=e.target.id,v=e.target.value;
+  if(id==="lf-type"||id==="lf-status"){S.lf[id==="lf-type"?"type":"status"]=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
+  const m={"cf-type":"type","cf-prov":"prov","cf-cohort":"cohort","cf-step":"step"}[id];if(m){S.cf[m]=v;S.cf.limit=40;$("call-results").innerHTML=callResults()}});
+document.addEventListener("input",e=>{const id=e.target.id,v=e.target.value;
+  if(id==="lf-q"){S.lf.q=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
+  if(id==="cf-q"){S.cf.q=v;S.cf.limit=40;$("call-results").innerHTML=callResults()}
+  if(id==="sc-q"){S.sc.q=v;$("sc-results").innerHTML=scriptItems()}});
 window.addEventListener("hashchange",()=>{const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h)&&h!==S.tab)setTab(h)});
 
 renderTabs();$("p-"+S.tab).hidden=false;TABS.forEach(([k])=>{$("p-"+k).hidden=k!==S.tab});
