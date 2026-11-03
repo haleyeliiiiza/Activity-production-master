@@ -54,7 +54,7 @@ Rules for automatic texting, read by n8n each time it runs. Change a value here 
 | Max texts per lead per day | 1 | Reminders are not counted. |
 | First text: days after added | 14 | New leads get a first text if never texted. |
 | Follow-up: days after no-answer call | 7 | Follow-up window after an unanswered call (PowerDialer 'Agent Ended' drops count as dials). |
-| First text days | Mon | Days Stage 0 leads get their first text, so first texts and calls never mix on one day. |
+| First text days | Tue,Thu | Days Stage 0 leads get their first text, so first texts and calls never mix on one day. |
 | Stage baseline date | 2026-11-02 | Date the Stage column was set; texts and calls on or after it advance a lead. |
 | Max first texts per run / Max drafts per run | 25 / 30 | Keeps each approval batch manageable. Call control first, then first texts, then follow-ups. |
 | First text test | A/B | A = booking-first wording, B = right-now invite. A/B splits by the last two digits of the phone; the draft's Ref column records the version. |
