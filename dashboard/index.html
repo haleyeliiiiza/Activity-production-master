@@ -230,7 +230,7 @@ function parseSched(v){return v.filter(r=>r.some(c=>String(c||"").trim())).map(r
   return {day,date:parseLong(day),actual:/actual/i.test(day),label:day.replace(/\s*-\s*ACTUAL/i,"").replace(/,\s*\d{4}$/,""),time:cell(r,1),group:cell(r,2),activity:cell(r,3),notes:cell(r,4),script:cell(r,5)}})}
 const parseCadence=v=>v.filter(r=>cell(r,0)).map(r=>({attempt:cell(r,0),when:cell(r,1),channel:cell(r,2),action:cell(r,3),none:cell(r,4),yes:cell(r,5),no:cell(r,6)}));
 // These plan rows are left out of the page (they stay on the sheet).
-const HIDE_PLAN=/^(close rate|risk \/ note|new tracker in november|daily contact pace|if presentation rate is lower|lead pool)/i;
+const HIDE_PLAN=/^(close rate|risk \/ note|new tracker in november|daily contact pace|if presentation rate is lower|lead pool|total check|daily tracking)/i;
 const parsePlan=v=>v.filter(r=>cell(r,0)&&!HIDE_PLAN.test(cell(r,0))).map(r=>({label:cell(r,0),detail:cell(r,1)}));
 const parseScripts=v=>v.filter(r=>cell(r,0)).map(r=>({name:cell(r,0),use:cell(r,1),text:cell(r,2)}));
 const SK=["dials","conn","texts","replies","made","shown","noshow","pres","sales","alp"];
@@ -345,16 +345,15 @@ function renderDashboard(){
 /* ---------- Nov 20k plan ---------- */
 function renderPlan(){
   const N=nov(), pres=N.pres||N.presFromStats, remaining=WORKDAYS.filter(d=>d>=TODAY).length||1;
-  const first=S.plan.findIndex(r=>/^week plan/i.test(r.label)); let weeksDone=false;
   const weeks=S.plan.filter(r=>/^week plan/i.test(r.label));
   const weekTable=()=>sec("Week by week","plan from the sheet, so far from the Tracker",table(["Week","Plan","Pres. so far","Sales so far","ALP so far"],weeks.map((r,i)=>{const w=PLAN.weeks[i],a=w?weekNums(w,N):{pres:0,sales:0,alp:0};
     return tr([esc(r.label.replace(/^week plan\s*-\s*/i,"")),esc(r.detail),a.pres,a.sales,money(a.alp)],{left:[1],wrap:[1]})}),{left:[1]}));
-  const blocks=S.plan.map((r,i)=>{if(/^week plan/i.test(r.label)){if(weeksDone)return "";weeksDone=true;return weekTable()}
+  const blocks=S.plan.map((r,i)=>{if(/^week plan/i.test(r.label))return "";
     return `<div class="nt"><h3>${esc(r.label)}</h3>${r.detail.split(/\s*\n\s*/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join("")}</div>`}).join("");
   $("p-plan").innerHTML=srcNote("plan","tracker")+
    sec("ALP Goal: 20K",`${money(PLAN.goal)} · ${PLAN.sales} sales · ${PLAN.pres} presentations`,
      `<div class="kpis">${kpi("ALP so far",money(N.alp),`${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day for ${remaining} working days`,N.alp/PLAN.goal)}${kpi("Sales",N.apps.length,`of ${PLAN.sales}`,N.apps.length/PLAN.sales)}${kpi("Presentations",pres,`of ${PLAN.pres}`,pres/PLAN.pres)}${kpi("Close rate",pres?pct(N.apps.length,pres):"—","plan "+Math.round(PLAN.close*100)+"%")}</div>`)+
-   (S.plan.length?blocks:sec("Plan","",empty("The plan tab is empty.","Add the goal and weekly targets to the November 20k ALP Plan tab.")))}
+   (S.plan.length?(weeks.length?weekTable():"")+blocks:sec("Plan","",empty("The plan tab is empty.","Add the goal and weekly targets to the November 20k ALP Plan tab.")))}
 
 /* ---------- Leads ---------- */
 const uniq=a=>[...new Set(a.filter(Boolean))].sort();
