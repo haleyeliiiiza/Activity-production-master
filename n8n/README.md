@@ -13,6 +13,7 @@ Workflow ID `oifhCUJNZSSW5rLc`. One workflow, four groups of steps. It writes to
 | Calendly | Calendly `invitee.created` and `invitee.canceled` | A booking adds an `Appointment Set` row (with Appointment Time and Booking ID) and a HubSpot note. A cancellation or reschedule adds a `Booking Canceled` row with the same Booking ID. |
 | Log Kixie texts | Kixie SMS webhook (`/webhook/kixie-sms`, same `X-Kixie-Secret` header) | Adds a `Text` row for each text you send and a `Text Reply` row for each reply, dated in Regina time, with the message in Notes. Kixie sends `direction` as "outgoing" or "incoming" (both confirmed with real texts). `messageDate` is ISO with a Z on sent texts and `yyyy-MM-dd HH:mm:ss` UTC on received ones; both are handled. |
 | Appointment outcomes | Opened from a link: GET `/webhook/appt-outcome?booking=<Booking ID>`, then a button tap POSTs to `/webhook/appt-outcome-save` | Shows the appointment with **Presentation held** and **No-show** buttons. A tap adds a `Presentation Held` or `No-Show` row with the same Booking ID and Appointment Time. It refuses unknown, canceled and already-logged bookings, so a double tap cannot log twice. The booking ID in the link is the only credential. |
+| Lead import | Every morning at 7 AM | Adds new leads from the `Lead Import` tab (written by Muse) to the `Leads` tab, skipping any lead whose phone number (last 10 digits) is already there. Also contains a one-time webhook (`/webhook/migrate-lead-tabs`) that merged All Leads Master and Call Lists into `Leads`; it does nothing once `Leads` has data. |
 | Daily progress report | Every morning at 8 AM | Reads the `Tracker` tab, works out progress against the November $20k ALP plan and emails it. |
 
 ### Daily progress report
@@ -36,6 +37,8 @@ Source is Tracker only. Dials and bookings that are only typed on the `Stats` ta
 The full workflow export contains the sheet ID and credential IDs, so it is not committed. Export it from n8n when needed.
 
 ### Notes
+
+- Google Sheets read steps run once per incoming row. Any read step that follows a step with many rows must have "Execute once" turned on, or it repeats the whole read for every row.
 
 - Every step that adds a row to the Tracker uses the Sheets append API (`useAppend`). Without it, two entries logged at the same moment could land on the same row and one would be lost. This matters for PowerDialer bursts.
 - HubSpot steps use HTTP Request nodes with the `HubSpot account` credential, so that credential must be allowed in HTTP Request nodes. n8n's built-in HubSpot node cannot create notes or phone-only contacts.

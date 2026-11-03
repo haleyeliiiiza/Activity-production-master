@@ -165,6 +165,8 @@ const TABS=[["dashboard","Dashboard"],["plan","Monthly Plan"],["leads","Leads"],
 // November 2026 plan, from the "November 20k ALP Plan" tab.
 // n8n page where a past appointment is marked as held or no-show (the booking ID goes on the end).
 const OUTCOME_URL="https://haleyeliiiiza.app.n8n.cloud/webhook/appt-outcome?booking=";
+// Dial and text counts typed into the Leads tab cover everything up to this date. Kixie rows in the Tracker after it are added on top.
+const HISTORY_END="2026-10-31";
 const PLAN={month:"2026-11",goal:20000,avg:1000,close:0.30,pres:67,sales:20,
   weeks:[{label:"Nov 2–6",start:"2026-11-02",end:"2026-11-06",pres:16,sales:5},{label:"Nov 9–13",start:"2026-11-09",end:"2026-11-13",pres:16,sales:5},
          {label:"Nov 16–20",start:"2026-11-16",end:"2026-11-20",pres:16,sales:5},{label:"Nov 23–30",start:"2026-11-23",end:"2026-11-30",pres:19,sales:5}]};
@@ -194,7 +196,7 @@ const planDay=d=>{const w=weekOf(d);if(!w)return 0;const n=WORKDAYS.filter(x=>x>
 
 /* ---------- state ---------- */
 const S={ef:{sort:"newest",limit:25},af:{y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"},stv:"month",mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,sched:[],cadence:[],scripts:[],plan:[],
-  lf:{view:"all",type:"all",prov:"all",status:"all",step:"all",cohort:"all",block:"all",sort:"name",q:"",limit:40},sf:{view:"upcoming"},sc:{q:""}};
+  lf:{view:"all",inbox:"all",type:"all",prov:"all",status:"all",step:"all",cohort:"all",block:"all",sort:"name",q:"",limit:40},sf:{view:"upcoming"},sc:{q:""}};
 try{const t=localStorage.getItem("ah:tab");if(t&&TABS.some(x=>x[0]===t))S.tab=t}catch(e){}
 {const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h))S.tab=h}
 
@@ -240,6 +242,13 @@ const parseCadence=v=>v.filter(r=>cell(r,0)).map(r=>({attempt:cell(r,0),when:cel
 const HIDE_PLAN=/^(close rate|risk \/ note|new tracker in november|daily contact pace|if presentation rate is lower|lead pool|total check|daily tracking)/i;
 const parsePlan=v=>v.filter(r=>cell(r,0)&&!HIDE_PLAN.test(cell(r,0))).map(r=>({label:cell(r,0),detail:cell(r,1)}));
 const parseScripts=v=>v.filter(r=>cell(r,0)).map(r=>({name:cell(r,0),use:cell(r,1),text:cell(r,2)}));
+function parseLeadsTab(v){if(!v||v.length<2)return [];
+  const h=(v[0]||[]).map(x=>String(x||"").replace(/\s+/g," ").trim().toLowerCase()),g=(r,n)=>{const i=h.indexOf(n.toLowerCase());return i<0?"":String(r[i]??"").trim()};
+  return v.slice(1).filter(r=>g(r,"Name")||g(r,"Phone")).map(r=>{const outcome=g(r,"Outcome"),next=g(r,"Next Step"),notes=g(r,"Notes"),step=next.split(/ - | – /)[0].trim();
+    return {inbox:g(r,"Lead Inbox"),type:g(r,"Lead Type"),name:g(r,"Name"),phone:g(r,"Phone"),prov:g(r,"Province"),email:g(r,"Email"),sponsor:g(r,"Sponsor"),beneficiary:g(r,"Beneficiary"),added:g(r,"Date Added"),
+      outcome,notes,next,step,cohort:g(r,"Cohort"),block:g(r,"Best Call Block"),pres:parseDate(g(r,"Presentation Date"),2026),dials:num(g(r,"Dials (history)")),texts:num(g(r,"Texts (history)")),
+      callDates:g(r,"Call Dates (history)"),textDates:g(r,"Text Dates (history)"),status:/booked/i.test(step)?"Booked":statusOf(outcome||notes),inQueue:Boolean(next)}})}
+const queueRows=()=>S.leadsTab?S.leads.filter(l=>l.inQueue):S.queue;
 const SK=["dials","conn","texts","replies","made","shown","noshow","pres","sales","alp"];
 function parseStats(v){if(!v.length)return null;const h=(v[0]||[]).map(x=>String(x||""));
   const map={dials:/^dials/i,conn:/connection/i,texts:/texts sent/i,replies:/repl/i,made:/made/i,shown:/shown/i,noshow:/no-?show/i,pres:/^presentations/i,sales:/^sales/i,alp:/alp/i};
@@ -278,12 +287,14 @@ async function load(){
   $("sync").textContent="Loading…";
   if(!S.mcp){try{S.mcp=(window.claude&&window.claude.use)?await window.claude.use("mcp"):null}catch(e){S.mcp=null}}
   if(!S.mcp){S.loaded=true;showBanner("This page reads your Master Lead/Activity Tracker sheet, so open it inside Claude (claude.ai) to see your data.");$("sync").textContent="Not connected";renderAll();return}
-  const jobs={tracker:getRange("Tracker!A2:L5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),stats:getRange("Stats!A5:L35"),sched:getRange("'Weekly Schedule'!A2:F80"),cadence:getRange("Cadence!A2:G40"),scripts:getRange("Scripts!A2:C60"),plan:getRange("'November 20k ALP Plan'!A2:B40")};
+  const jobs={tracker:getRange("Tracker!A2:L5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),stats:getRange("Stats!A5:L35"),sched:getRange("'Weekly Schedule'!A2:F80"),cadence:getRange("Cadence!A2:G40"),scripts:getRange("Scripts!A2:C60"),plan:getRange("'November 20k ALP Plan'!A2:B40"),leadsTab:getRange("Leads!A1:S2000")};
   const keys=Object.keys(jobs), res=await Promise.allSettled(keys.map(k=>jobs[k]));
   S.err={};let bad=0,first=null;
   res.forEach((r,i)=>{const k=keys[i];if(r.status==="fulfilled"){const v=r.value;
-      if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else if(k==="sched")S.sched=parseSched(v);else if(k==="cadence")S.cadence=parseCadence(v);else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="plan")S.plan=parsePlan(v);else S.stats=parseStats(v)}
+      if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else if(k==="sched")S.sched=parseSched(v);else if(k==="cadence")S.cadence=parseCadence(v);else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="plan")S.plan=parsePlan(v);else if(k==="leadsTab")S.leadsRaw=parseLeadsTab(v);else S.stats=parseStats(v)}
     else{S.err[k]=r.reason;bad++;first=first||r.reason}});
+  // Use the Leads tab when it has leads; otherwise fall back to All Leads Master and Call Lists.
+  S.leadsTab=Boolean(S.leadsRaw&&S.leadsRaw.length);if(S.leadsTab){S.leads=S.leadsRaw;S.queue=[]}
   S.loaded=true;S.at=new Date();
   showBanner(bad===keys.length?errMsg(first):bad?"Some data didn't load ("+keys.filter(k=>S.err[k]).join(", ")+"). "+errMsg(first):"");
   $("sync").innerHTML=`Updated ${S.at.toLocaleTimeString("en-CA",{hour:"numeric",minute:"2-digit"})}<button id="refresh">Refresh</button>`;
@@ -320,8 +331,8 @@ function renderDashboard(){
     pending=S.tracker.filter(r=>r.type==="Appointment Set"&&!r.interview&&!r.canceled&&!r.outcome&&r.appt&&r.appt<=nowR&&r.appt>=cutR).sort((a,b)=>a.appt<b.appt?-1:1),
     wn=weekNums(wk,N), up=S.leads.filter(l=>l.pres&&l.pres>=TODAY).sort((a,b)=>a.pres<b.pres?-1:1),
     appts=S.tracker.filter(r=>r.type==="Appointment Set"&&!r.interview&&!r.canceled&&!r.outcome&&r.appt&&r.appt.slice(0,10)>=TODAY).sort((a,b)=>a.appt<b.appt?-1:1);
-  const follow=S.leads.filter(l=>l.status==="Follow-up"), callBack=S.queue.filter(q=>/^call back first/i.test(q.step));
-  const stepCounts={};S.queue.forEach(q=>stepCounts[q.step]=(stepCounts[q.step]||0)+1);
+  const follow=S.leads.filter(l=>l.status==="Follow-up"), callBack=queueRows().filter(q=>/^call back first/i.test(q.step));
+  const stepCounts={};queueRows().forEach(q=>stepCounts[q.step]=(stepCounts[q.step]||0)+1);
   const steps=Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const remaining=WORKDAYS.filter(d=>d>=TODAY).length||1, todayRows=S.sched.filter(r=>r.date===TODAY);
   $("p-dashboard").innerHTML=
@@ -344,8 +355,8 @@ function renderDashboard(){
      follow.length?`<div class="list">${follow.slice(0,6).map(l=>`<div class="item" style="grid-template-columns:minmax(0,1fr) auto"><span><span class="p">${esc(l.name)}</span><br><span class="m">${esc(l.outcome.split(";")[0])}</span></span>${statusChip(l.type)}</div>`).join("")}</div>`
        :empty("No replies waiting.","Leads that texted back or talked to you show up here."))+
    `</div>`+
-   sec("Lead pipeline",`${S.leads.length} leads on All Leads Master`,S.leads.length?pipeline(S.leads):empty("No leads loaded.","The All Leads Master tab had no rows."))+
-   sec("Call queue",`${S.queue.length} on Call Lists${callBack.length?` · ${callBack.length} to call back first`:""}`,
+   sec("Lead pipeline",`${S.leads.length} leads`,S.leads.length?pipeline(S.leads):empty("No leads loaded.","The Leads tab had no rows."))+
+   sec("Call queue",`${queueRows().length} on the call list${callBack.length?` · ${callBack.length} to call back first`:""}`,
      steps.length?table(["Next step","Leads"],steps.map(([s,c])=>tr([esc(s),c]))):empty("The call queue is empty.","Call Lists has no rows."))
 }
 
@@ -366,7 +377,13 @@ function renderPlan(){
 const uniq=a=>[...new Set(a.filter(Boolean))].sort();
 const dg10=x=>String(x||"").replace(/\D/g,"").slice(-10);
 const lastIso=s=>{const d=[...String(s||"").matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g)].map(m=>iso(m[3],+m[1],+m[2])).sort();return d.length?d[d.length-1]:""};
-function mergeLeads(){const map=new Map(),key=(ph,nm)=>dg10(ph).length>=7?dg10(ph):"n:"+String(nm||"").trim().toLowerCase();
+function leadsFromTab(){const idx=new Map();
+  S.tracker.forEach(r=>{if(r.date<=HISTORY_END||(r.type!=="Call"&&r.type!=="Text"))return;const k=dg10(r.phone);if(k.length<7)return;
+    let e=idx.get(k);if(!e){e={dials:0,texts:0,lastDial:"",lastText:""};idx.set(k,e)}
+    if(r.type==="Call"){e.dials++;if(r.date>e.lastDial)e.lastDial=r.date}else{e.texts++;if(r.date>e.lastText)e.lastText=r.date}});
+  return S.leads.map(l=>{const e=idx.get(dg10(l.phone))||{dials:0,texts:0,lastDial:"",lastText:""},hd=lastIso(l.callDates),ht=lastIso(l.textDates);
+    return {...l,dials:l.dials+e.dials,texts:l.texts+e.texts,lastDial:e.lastDial>hd?e.lastDial:hd,lastText:e.lastText>ht?e.lastText:ht}})}
+function mergeLeads(){if(S.leadsTab)return leadsFromTab();const map=new Map(),key=(ph,nm)=>dg10(ph).length>=7?dg10(ph):"n:"+String(nm||"").trim().toLowerCase();
   S.leads.forEach(l=>map.set(key(l.phone,l.name),{...l,inQueue:false,step:"",cohort:"",block:"",next:"",lastDial:lastIso(l.callDates),lastText:lastIso(l.textDates)}));
   S.queue.forEach(q=>{const k=key(q.phone,q.name);let m=map.get(k);
     if(!m){const td=(String(q.notes).match(/total dials:\s*(\d+)/i)||[])[1];
@@ -382,14 +399,14 @@ function sortLeads(rows,mode){const nm=(a,b)=>a.name.localeCompare(b.name,undefi
     block:(a,b)=>(a.block?0:1)-(b.block?0:1)||a.block.localeCompare(b.block)||nm(a,b)}[mode]||nm;
   return [...rows].sort(cmp)}
 function leadFilter(){const f=S.lf,q=f.q.trim().toLowerCase();
-  return S.merged.filter(x=>(f.view==="all"||x.inQueue)&&(f.type==="all"||x.type===f.type)&&(f.prov==="all"||x.prov===f.prov)&&(f.status==="all"||x.status===f.status)
+  return S.merged.filter(x=>(f.view==="all"||x.inQueue)&&(f.inbox==="all"||x.inbox===f.inbox)&&(f.type==="all"||x.type===f.type)&&(f.prov==="all"||x.prov===f.prov)&&(f.status==="all"||x.status===f.status)
     &&(f.view==="all"||((f.step==="all"||x.step===f.step)&&(f.cohort==="all"||x.cohort===f.cohort)&&(f.block==="all"||x.block===f.block)))
     &&(!q||(x.name+" "+x.phone+" "+x.outcome+" "+x.next).toLowerCase().includes(q)))}
 const leadItem=l=>{
-  const meta=[l.type,l.prov,l.inQueue?l.cohort:"",l.inQueue&&l.block?"best "+l.block:""].filter(Boolean).join(" · ");
+  const meta=[l.inbox,l.type,l.prov,l.inQueue?l.cohort:"",l.inQueue&&l.block?"best "+l.block:""].filter(Boolean).join(" · ");
   const act=[`${l.dials} ${l.dials===1?"dial":"dials"}`,`${l.texts} ${l.texts===1?"text":"texts"}`,l.lastDial?"last dial "+fd(l.lastDial):"",l.lastText?"last text "+fd(l.lastText):"",l.pres?"presentation "+fd(l.pres):""].filter(Boolean).join(" · ");
   const last=String(l.outcome||"").split(";").pop().trim();
-  return `<div class="lead"><div class="lh"><span class="p">${esc(l.name)}</span><span class="dim">${esc(l.phone)}</span>${statusChip(l.status||"Untouched")}</div><div class="lm">${esc(meta)}</div>${l.inQueue&&l.next?`<div class="lm">Next: <b>${esc(l.next)}</b></div>`:""}<div class="lm">${esc(act)}</div>${last?`<div class="lo">${esc(last)}</div>`:""}</div>`};
+  return `<div class="lead"><div class="lh"><span class="p">${esc(l.name)}</span><span class="dim">${esc(l.phone)}</span>${statusChip(l.status||"Untouched")}</div><div class="lm">${esc(meta)}</div>${l.inQueue&&l.next?`<div class="lm">Next: <b>${esc(l.next)}</b></div>`:""}${(l.email||l.sponsor||l.beneficiary)?`<div class="lm">${esc([l.email,l.sponsor?"Sponsor: "+l.sponsor:"",l.beneficiary?"Beneficiary: "+l.beneficiary:""].filter(Boolean).join(" · "))}</div>`:""}<div class="lm">${esc(act)}</div>${last?`<div class="lo">${esc(last)}</div>`:""}</div>`};
 function leadResults(){const f=S.lf, rows=sortLeads(leadFilter(),f.sort), shown=rows.slice(0,f.limit);
   if(!rows.length)return empty("No leads match.","Clear the search or loosen a filter.");
   return `<div class="n dim" style="font-size:12.5px;margin-bottom:6px">Showing ${shown.length} of ${rows.length}</div><div class="leads">${shown.map(leadItem).join("")}</div>`+
@@ -402,11 +419,11 @@ function renderLeads(){
   const byType=uniq(M.map(x=>x.type)).map(t=>{const L=M.filter(l=>l.type===t),bk=L.filter(l=>l.status==="Booked").length;return tr([esc(t),L.length,L.filter(l=>l.inQueue).length,L.reduce((a,l)=>a+l.dials,0),L.reduce((a,l)=>a+l.texts,0),bk,L.filter(l=>l.status==="Follow-up").length,pct(bk,L.length)])});
   const statusOpts=[["all","Any status"],...STATUS.map(s=>[s[0],s[0]])];
   $("p-leads").innerHTML=srcNote("leads","queue")+
-   sec("Leads",`${M.length} leads · ${inQ.length} on the call list`,M.length?`<div class="kpis">${kpi("Leads",M.length,"All Leads Master and Call Lists")}${kpi("On call list",inQ.length,pct(inQ.length,M.length)+" of leads")}${kpi("Booked",cnt("Booked"),pct(cnt("Booked"),M.length))}${kpi("Follow-up",cnt("Follow-up"),"replied or talked")}${kpi("Untouched",cnt("Untouched"),"no outcome yet")}</div>`+pipeline(M):empty("No leads loaded.","The All Leads Master and Call Lists tabs had no rows."))+
+   sec("Leads",`${M.length} leads · ${inQ.length} on the call list`,M.length?`<div class="kpis">${kpi("Leads",M.length,S.leadsTab?"from the Leads tab":"All Leads Master and Call Lists")}${kpi("On call list",inQ.length,pct(inQ.length,M.length)+" of leads")}${kpi("Booked",cnt("Booked"),pct(cnt("Booked"),M.length))}${kpi("Follow-up",cnt("Follow-up"),"replied or talked")}${kpi("Untouched",cnt("Untouched"),"no outcome yet")}</div>`+pipeline(M):empty("No leads loaded.","The All Leads Master and Call Lists tabs had no rows."))+
    (M.length?sec("By lead type","",table(["Type","Leads","On list","Dials","Texts","Booked","Follow-up","Booked %"],byType))+
     (inQ.length?sec("Call list by next step","",table(["Next step","Leads"],Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).map(([k,c])=>tr([esc(k),c])))):"")+
     sec("Lead list","",`<div class="row"><div class="seg" role="group" aria-label="List"><button data-lv="all" aria-pressed="${f.view==="all"}">All leads</button><button data-lv="call" aria-pressed="${f.view==="call"}">Call list</button></div></div>
-     <div class="row">${sel("lf-type","Lead type","All types",uniq(M.map(x=>x.type)),f.type)}${sel("lf-prov","Province","All provinces",uniq(M.map(x=>x.prov)),f.prov)}
+     <div class="row">${sel("lf-inbox","Lead inbox","All inboxes",uniq(M.map(x=>x.inbox)),f.inbox)}${sel("lf-type","Lead type","All types",uniq(M.map(x=>x.type)),f.type)}${sel("lf-prov","Province","All provinces",uniq(M.map(x=>x.prov)),f.prov)}
      <select id="lf-status" aria-label="Status">${statusOpts.map(([v,t])=>`<option value="${esc(v)}"${f.status===v?" selected":""}>${esc(t)}</option>`).join("")}</select>
      ${f.view==="call"?sel("lf-step","Next step","Any next step",uniq(inQ.map(x=>x.step)),f.step)+sel("lf-cohort","Cohort","All cohorts",uniq(inQ.map(x=>x.cohort)),f.cohort)+sel("lf-block","Best call block","Any call block",uniq(inQ.map(x=>x.block)),f.block):""}
      <select id="lf-sort" aria-label="Sort leads">${SORTS_L.map(([v,t])=>`<option value="${v}"${f.sort===v?" selected":""}>${t}</option>`).join("")}</select></div>
@@ -554,7 +571,7 @@ document.addEventListener("change",e=>{const id=e.target.id,v=e.target.value;
   if(id==="af-y"){S.ef.limit=25;S.af.y=v;if(v==="all"){S.af.m="all";S.af.d="all"}return renderActivity()}
   if(id==="af-m"){S.ef.limit=25;S.af.m=v;S.af.d="all";return renderActivity()}
   if(id==="af-d"){S.ef.limit=25;S.af.d=v;return renderActivity()}
-  const lm={"lf-type":"type","lf-prov":"prov","lf-status":"status","lf-step":"step","lf-cohort":"cohort","lf-block":"block","lf-sort":"sort"}[id];if(lm){S.lf[lm]=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
+  const lm={"lf-inbox":"inbox","lf-type":"type","lf-prov":"prov","lf-status":"status","lf-step":"step","lf-cohort":"cohort","lf-block":"block","lf-sort":"sort"}[id];if(lm){S.lf[lm]=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
   });
 document.addEventListener("input",e=>{const id=e.target.id,v=e.target.value;
   if(id==="lf-q"){S.lf.q=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}

@@ -25,6 +25,20 @@ Header row, A to L:
 
 The November dashboard reads Date/Type and Premium/Notes/Power List as separate ranges and joins them by sheet row number, so do not sort the tab or insert rows mid-sheet.
 
+## Tab: Lead Import (written by Muse)
+
+Muse collects leads from the two Planet ALTIG inboxes (**Haley Walker** and **Melanie Knox**) and adds one row per lead. Headers in row 1: Lead Type, Name, Province, Phone, Email, Sponsor, Beneficiary, Inbox, Date Collected. Email, Sponsor and Beneficiary are blank for lead types that do not have them. The Phone column is formatted as plain text; a number that starts with `+` must be written with a leading apostrophe or Sheets turns it into a formula error.
+
+Every morning at 7 AM Regina time n8n adds new rows to **Leads**. A lead is new when the last 10 digits of its phone number are not already on Leads (leads with no phone are matched on name and type, and noted "No phone number: review"). Existing leads are never changed, and importing the same row twice adds nothing.
+
+## Tab: Leads (the lead list the hub reads)
+
+One row per lead. Columns: Lead Type, Name, Phone, Province, Email, Sponsor, Beneficiary, Lead Inbox, Date Added, Outcome, Next Step, Cohort, Best Call Block, Presentation Date, Notes, Dials (history), Texts (history), Call Dates (history), Text Dates (history).
+
+- You work Outcome, Next Step, Cohort, Best Call Block, Presentation Date and Notes. A lead is on the call list when it has a Next Step.
+- The four history columns hold the dial and text counts and dates typed before Kixie logging began. Stop typing them. The hub adds Kixie dials and texts from the Tracker (dated after 2026-10-31) on top, matched by the last 10 digits of the phone.
+- This tab replaces **All Leads Master** and **Call Lists**, which can be archived. The hub still falls back to them if Leads is empty.
+
 ## Tab: Power Lists
 
 | Col | Header | Notes |
