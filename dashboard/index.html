@@ -181,7 +181,7 @@ const weekOf=d=>PLAN.weeks.find(w=>d>=w.start&&d<=w.end);
 const planDay=d=>{const w=weekOf(d);if(!w)return 0;const n=WORKDAYS.filter(x=>x>=w.start&&x<=w.end).length;return PLAN.avg*w.sales/n};
 
 /* ---------- state ---------- */
-const S={stv:"month",mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,sched:[],cadence:[],scripts:[],plan:[],
+const S={af:{y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"},stv:"month",mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,sched:[],cadence:[],scripts:[],plan:[],
   lf:{type:"all",status:"all",q:"",limit:40},cf:{type:"all",prov:"all",cohort:"all",step:"all",q:"",limit:40},sf:{view:"upcoming"},sc:{q:""}};
 try{const t=localStorage.getItem("ah:tab");if(t&&TABS.some(x=>x[0]===t))S.tab=t}catch(e){}
 {const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h))S.tab=h}
@@ -396,20 +396,35 @@ function renderScripts(){
 async function copyText(t,btn){try{await navigator.clipboard.writeText(t);btn.textContent="Copied"}catch(e){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");btn.textContent="Copied"}catch(_){btn.textContent="Select the text and copy"}ta.remove()}setTimeout(()=>{btn.textContent="Copy"},1800)}
 
 /* ---------- Activity ---------- */
+const MONTHS_FULL=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const pad2=n=>String(n).padStart(2,"0");
+function actLabel(f){if(f.y==="all")return "All time";if(f.m==="all")return f.y;const mn=MONTHS_FULL[+f.m-1];return f.d==="all"?mn+" "+f.y:mn+" "+(+f.d)+", "+f.y}
 function renderActivity(){
-  const N=nov(), T=S.tracker;
+  const T=S.tracker;
   if(!T.length){$("p-activity").innerHTML=srcNote("tracker")+sec("Activity","",empty("The Tracker tab has no rows yet.","Calls from Kixie, the log form and Calendly bookings are added by the n8n flows. They appear here as they arrive."));return}
-  const days={};T.forEach(r=>{const d=days[r.date]=days[r.date]||{date:r.date,dials:0,conv:0,txt:0,rep:0,book:0,pres:0,ns:0,apps:0,alp:0};
+  const f=S.af, years=[...new Set([...T.map(r=>r.date.slice(0,4)),TODAY.slice(0,4)])].sort().reverse();
+  if(f.y!=="all"&&!years.includes(f.y))f.y=years[0];
+  const dim=f.y!=="all"&&f.m!=="all"?new Date(Date.UTC(+f.y,+f.m,0)).getUTCDate():31;
+  if(f.m==="all"||(f.d!=="all"&&+f.d>dim))f.d="all";
+  const R=T.filter(r=>{const [y,m,d]=r.date.split("-");return (f.y==="all"||y===f.y)&&(f.m==="all"||m===f.m)&&(f.d==="all"||d===f.d)});
+  const sel=(id,label,opts,cur,dis)=>`<select id="${id}" aria-label="${label}"${dis?" disabled":""}>${opts.map(([v,t])=>`<option value="${v}"${String(cur)===String(v)?" selected":""}>${esc(t)}</option>`).join("")}</select>`;
+  const controls=`<div class="row">${sel("af-y","Year",[["all","All years"],...years.map(y=>[y,y])],f.y)}${sel("af-m","Month",[["all","All months"],...MONTHS_FULL.map((n,i)=>[pad2(i+1),n])],f.m,f.y==="all")}${sel("af-d","Day",[["all","All days"],...Array.from({length:dim},(_,i)=>[pad2(i+1),String(i+1)])],f.d,f.m==="all")}<button class="more" id="af-reset">This month</button></div>`;
+  const label=actLabel(f);
+  if(f.y==="all"){f.m="all";f.d="all"}
+  if(!R.length){$("p-activity").innerHTML=srcNote("tracker")+sec("Activity",esc(label),controls+empty("No activity in "+esc(label)+".","Pick another period, or tap This month."));return}
+  const of=t=>R.filter(r=>r.type===t), calls=of("Call"), conv=calls.filter(r=>r.conn).length, book=of("Appointment Set").filter(r=>!r.interview).length,
+    pres=of("Presentation Held").length, ns=of("No-Show").length, apps=of("Application Submitted"), alp=apps.reduce((a,r)=>a+r.premium,0), tx=of("Text").length, rp=of("Text Reply").length;
+  const days={};R.forEach(r=>{const d=days[r.date]=days[r.date]||{date:r.date,dials:0,conv:0,txt:0,rep:0,book:0,pres:0,ns:0,apps:0,alp:0};
     if(r.type==="Call"){d.dials++;if(r.conn)d.conv++}else if(r.type==="Text")d.txt++;else if(r.type==="Text Reply")d.rep++;else if(r.type==="Appointment Set"&&!r.interview)d.book++;else if(r.type==="Presentation Held")d.pres++;
     else if(r.type==="No-Show")d.ns++;else if(r.type==="Application Submitted"){d.apps++;d.alp+=r.premium}});
-  const drows=Object.values(days).sort((a,b)=>a.date<b.date?1:-1).slice(0,14);
-  const lists={};T.filter(r=>r.type==="Call"&&r.list).forEach(r=>{const l=lists[r.list]=lists[r.list]||{n:r.list,d:0,c:0};l.d++;if(r.conn)l.c++});
-  const recent=[...T].reverse().slice(0,15);
+  const all=Object.values(days).sort((a,b)=>a.date<b.date?1:-1), drows=all.slice(0,31);
+  const lists={};calls.filter(r=>r.list).forEach(r=>{const l=lists[r.list]=lists[r.list]||{n:r.list,d:0,c:0};l.d++;if(r.conn)l.c++});
+  const recent=[...R].reverse().slice(0,25);
   $("p-activity").innerHTML=srcNote("tracker")+
-   sec("November so far",`${N.rows.length} entries`,`<div class="kpis">${kpi("Dials",N.calls.length,"Kixie calls")}${kpi("Conversations",N.conv,pct(N.conv,N.calls.length)+" of dials")}${kpi("Bookings",N.booked.length,"recruiting interviews left out")}${kpi("Presentations",N.pres,N.noshow+" no-shows")}${kpi("Applications",N.apps.length,money(N.alp)+" ALP")}</div>`)+
-   sec("By day","last 14 days with activity",table(["Day","Dials","Convos","Texts","Replies","Bookings","Pres.","No-shows","Apps","ALP"],drows.map(d=>tr([fd(d.date),d.dials,d.conv,d.txt,d.rep,d.book,d.pres,d.ns,d.apps,money(d.alp)]))))+
+   sec("Activity",esc(label)+` · ${R.length} ${R.length===1?"entry":"entries"}`,controls+`<div class="kpis">${kpi("Dials",calls.length,"Kixie calls")}${kpi("Conversations",conv,pct(conv,calls.length)+" of dials")}${kpi("Texts",tx,rp+(rp===1?" reply":" replies"))}${kpi("Bookings",book,"recruiting interviews left out")}${kpi("Presentations",pres,ns+" no-shows")}${kpi("Applications",apps.length,money(alp)+" ALP")}</div>`)+
+   (f.d==="all"?sec("By day",all.length>31?"latest 31 days with activity":`${all.length} ${all.length===1?"day":"days"} with activity`,table(["Day","Dials","Convos","Texts","Replies","Bookings","Pres.","No-shows","Apps","ALP"],drows.map(d=>tr([f.y==="all"||f.m==="all"?fd(d.date)+" "+d.date.slice(0,4):fd(d.date),d.dials,d.conv,d.txt,d.rep,d.book,d.pres,d.ns,d.apps,money(d.alp)])))):"")+
    (Object.keys(lists).length?sec("By power list","",table(["List","Dials","Convos","Reach"],Object.values(lists).sort((a,b)=>b.d-a.d).map(l=>tr([esc(l.n),l.d,l.c,pct(l.c,l.d)])))):"")+
-   sec("Latest entries","",`<div class="list">${recent.map(r=>`<div class="item"><span class="d">${fd(r.date)}</span><span><span class="p">${esc(r.type)}</span> <span class="dim">${esc(r.name)}</span><br><span class="m">${esc(r.disp)}</span></span><span class="dim">${esc(r.source)}</span></div>`).join("")}</div>`)
+   sec("Entries",R.length>25?"latest 25":"",`<div class="list">${recent.map(r=>`<div class="item"><span class="d">${fd(r.date)}</span><span><span class="p">${esc(r.type)}</span> <span class="dim">${esc(r.name)}</span><br><span class="m">${esc(r.type==="Text"||r.type==="Text Reply"?r.notes:r.disp)}</span></span><span class="dim">${esc(r.source)}</span></div>`).join("")}</div>`)
 }
 
 /* ---------- Stats ---------- */
@@ -473,11 +488,15 @@ document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)r
   if(t.dataset.tab)return setTab(t.dataset.tab);
   if(t.id==="refresh")return load();
   if(t.dataset.stv){S.stv=t.dataset.stv;return renderStats()}
+  if(t.id==="af-reset"){S.af={y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"};return renderActivity()}
   if(t.dataset.sv){S.sf.view=t.dataset.sv;return renderSchedule()}
   if(t.dataset.copy!=null){const x=S.scripts[+t.dataset.copy];return x&&copyText(x.text,t)}
   if(t.id==="lead-more"){S.lf.limit+=40;$("lead-results").innerHTML=leadResults()}
   if(t.id==="call-more"){S.cf.limit+=40;$("call-results").innerHTML=callResults()}});
 document.addEventListener("change",e=>{const id=e.target.id,v=e.target.value;
+  if(id==="af-y"){S.af.y=v;if(v==="all"){S.af.m="all";S.af.d="all"}return renderActivity()}
+  if(id==="af-m"){S.af.m=v;S.af.d="all";return renderActivity()}
+  if(id==="af-d"){S.af.d=v;return renderActivity()}
   if(id==="lf-type"||id==="lf-status"){S.lf[id==="lf-type"?"type":"status"]=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
   const m={"cf-type":"type","cf-prov":"prov","cf-cohort":"cohort","cf-step":"step"}[id];if(m){S.cf[m]=v;S.cf.limit=40;$("call-results").innerHTML=callResults()}});
 document.addEventListener("input",e=>{const id=e.target.id,v=e.target.value;
