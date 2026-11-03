@@ -199,7 +199,11 @@ async function getRange(range){const r=await S.mcp.callTool(SRV,"get_values",{sp
 const connected=n=>/^connected/i.test(n)&&!/no answer|voicemail|call control/i.test(n);
 function parseTracker(v){return v.filter(r=>r[0]||r[1]).map(r=>{const notes=String(r[7]||"");
   return {date:parseDate(r[0]),type:String(r[1]||"").trim(),name:String(r[2]||"").trim(),premium:num(r[5]),source:String(r[6]||"").trim(),
-    notes,disp:notes.split("|")[0].trim(),conn:connected(notes),dir:(t=>t==="Text Reply"?"in":t==="Text"?"out":t==="Call"?(/inbound/i.test(notes)?"in":"out"):"")(String(r[1]||"").trim()),interview:/interview/i.test(notes),list:String(r[9]||"").trim()}}).filter(r=>r.date)}
+    notes,disp:notes.split("|")[0].trim(),conn:connected(notes),dir:(t=>t==="Text Reply"?"in":t==="Text"?"out":t==="Call"?(/inbound/i.test(notes)?"in":"out"):"")(String(r[1]||"").trim()),interview:/interview/i.test(notes),list:String(r[9]||"").trim(),appt:String(r[10]||"").trim(),bid:String(r[11]||"").trim()}}).filter(r=>r.date)}
+// A booking is canceled when a Booking Canceled row shares its Booking ID, or its name and appointment time (rows logged before Booking IDs existed).
+function markCanceled(T){const ids=new Set(),keys=new Set();T.filter(r=>r.type==="Booking Canceled").forEach(r=>{if(r.bid)ids.add(r.bid);if(r.appt)keys.add(r.name.toLowerCase()+"|"+r.appt)});
+  T.forEach(r=>{r.canceled=r.type==="Appointment Set"&&Boolean((r.bid&&ids.has(r.bid))||(r.appt&&keys.has(r.name.toLowerCase()+"|"+r.appt)))});return T}
+const apptTime=a=>{const m=String(a||"").match(/(\d{2}):(\d{2})$/);if(!m)return "";const h=+m[1];return ((h%12)||12)+":"+m[2]+(h<12?" AM":" PM")};
 function statusOf(o){o=String(o||"").trim();if(!o)return "Untouched";
   if(/booked/i.test(o))return "Booked"; if(/unreachable|bad number/i.test(o))return "Unreachable";
   if(/not interested|not for me/i.test(o))return "Not interested";
@@ -230,28 +234,30 @@ const MONTH=TODAY.slice(0,7), MONTH_NAME=["January","February","March","April","
 // Stats rows for the current month. The "MTD to <date>" opening row counts only when its date is in the current month.
 // Dials and conversations come from the Tracker (Kixie) for any day it has call rows; every other number comes from the Stats tab.
 function kixieDays(){const m={};S.tracker.filter(r=>r.date.startsWith(MONTH)).forEach(r=>{
-  if(r.type!=="Call"&&r.type!=="Text"&&r.type!=="Text Reply")return;
-  const d=m[r.date]=m[r.date]||{dials:0,conn:0,texts:0,replies:0,call:false,txt:false};
-  if(r.type==="Call"){d.call=true;d.dials++;if(r.conn)d.conn++}else{d.txt=true;if(r.type==="Text")d.texts++;else d.replies++}});return m}
+  const book=r.type==="Appointment Set"&&!r.interview;
+  if(r.type!=="Call"&&r.type!=="Text"&&r.type!=="Text Reply"&&!book)return;
+  const d=m[r.date]=m[r.date]||{dials:0,conn:0,texts:0,replies:0,made:0,call:false,txt:false,bk:false};
+  if(r.type==="Call"){d.call=true;d.dials++;if(r.conn)d.conn++}else if(book){d.bk=true;if(!r.canceled)d.made++}else{d.txt=true;if(r.type==="Text")d.texts++;else d.replies++}});return m}
 const kixieOn=()=>S.tracker.some(r=>r.type==="Call"&&r.date.startsWith(MONTH));
+const kixieBookOn=()=>S.tracker.some(r=>r.type==="Appointment Set"&&!r.interview&&r.date.startsWith(MONTH));
 const kixieTextOn=()=>S.tracker.some(r=>(r.type==="Text"||r.type==="Text Reply")&&r.date.startsWith(MONTH));
 function statDays(all){if(!S.stats)return [];if(all)return S.stats.days;
   const base=S.stats.days.filter(d=>d.date.startsWith(MONTH)),k=kixieDays(),dates=Object.keys(k);if(!dates.length)return base;
   const by={};base.forEach(d=>by[d.date]={...d});
-  dates.forEach(dt=>{const o=by[dt]=by[dt]||Object.fromEntries([...SK.map(x=>[x,0]),["date",dt]]);const k0=k[dt];if(k0.call){o.dials=k0.dials;o.conn=k0.conn}if(k0.txt){o.texts=k0.texts;o.replies=k0.replies}});
+  dates.forEach(dt=>{const o=by[dt]=by[dt]||Object.fromEntries([...SK.map(x=>[x,0]),["date",dt]]);const k0=k[dt];if(k0.call){o.dials=k0.dials;o.conn=k0.conn}if(k0.txt){o.texts=k0.texts;o.replies=k0.replies}if(k0.bk)o.made=k0.made});
   return Object.values(by).sort((a,b)=>a.date<b.date?-1:1)}
 function totals(all){const st=S.stats;if(!st)return null;const useBase=st.base&&(all||(st.baseDate&&st.baseDate.startsWith(MONTH)));const t={};
-  SK.forEach(k=>t[k]=(useBase?st.base[k]:0)+statDays(all).reduce((a,d)=>a+d[k],0));t.src=!all&&kixieOn()?"Kixie":"";t.textSrc=!all&&kixieTextOn()?"Kixie":"";return t}
+  SK.forEach(k=>t[k]=(useBase?st.base[k]:0)+statDays(all).reduce((a,d)=>a+d[k],0));t.src=!all&&kixieOn()?"Kixie":"";t.textSrc=!all&&kixieTextOn()?"Kixie":"";t.bookSrc=!all&&kixieBookOn()?"Tracker":"";return t}
 
 async function load(){
   $("sync").textContent="Loading…";
   if(!S.mcp){try{S.mcp=(window.claude&&window.claude.use)?await window.claude.use("mcp"):null}catch(e){S.mcp=null}}
   if(!S.mcp){S.loaded=true;showBanner("This page reads your Master Lead/Activity Tracker sheet, so open it inside Claude (claude.ai) to see your data.");$("sync").textContent="Not connected";renderAll();return}
-  const jobs={tracker:getRange("Tracker!A2:J5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),stats:getRange("Stats!A5:L35"),sched:getRange("'Weekly Schedule'!A2:F80"),cadence:getRange("Cadence!A2:G40"),scripts:getRange("Scripts!A2:C60"),plan:getRange("'November 20k ALP Plan'!A2:B40")};
+  const jobs={tracker:getRange("Tracker!A2:L5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),stats:getRange("Stats!A5:L35"),sched:getRange("'Weekly Schedule'!A2:F80"),cadence:getRange("Cadence!A2:G40"),scripts:getRange("Scripts!A2:C60"),plan:getRange("'November 20k ALP Plan'!A2:B40")};
   const keys=Object.keys(jobs), res=await Promise.allSettled(keys.map(k=>jobs[k]));
   S.err={};let bad=0,first=null;
   res.forEach((r,i)=>{const k=keys[i];if(r.status==="fulfilled"){const v=r.value;
-      if(k==="tracker")S.tracker=parseTracker(v);else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else if(k==="sched")S.sched=parseSched(v);else if(k==="cadence")S.cadence=parseCadence(v);else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="plan")S.plan=parsePlan(v);else S.stats=parseStats(v)}
+      if(k==="tracker")S.tracker=markCanceled(parseTracker(v));else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else if(k==="sched")S.sched=parseSched(v);else if(k==="cadence")S.cadence=parseCadence(v);else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="plan")S.plan=parsePlan(v);else S.stats=parseStats(v)}
     else{S.err[k]=r.reason;bad++;first=first||r.reason}});
   S.loaded=true;S.at=new Date();
   showBanner(bad===keys.length?errMsg(first):bad?"Some data didn't load ("+keys.filter(k=>S.err[k]).join(", ")+"). "+errMsg(first):"");
@@ -277,7 +283,7 @@ const srcNote=(...ks)=>{const k=ks.find(x=>S.err[x]);return k?`<div class="banne
 function nov(){const t=S.tracker.filter(r=>r.date.startsWith(PLAN.month));const by=ty=>t.filter(r=>r.type===ty);
   const apps=by("Application Submitted"), st=totals();
   const presT=by("Presentation Held").length;
-  return {rows:t,calls:by("Call").filter(r=>true),conv:by("Call").filter(r=>r.conn).length,booked:by("Appointment Set").filter(r=>!r.interview),pres:presT,
+  return {rows:t,calls:by("Call").filter(r=>true),conv:by("Call").filter(r=>r.conn).length,booked:by("Appointment Set").filter(r=>!r.interview&&!r.canceled),pres:presT,
     presFromStats:!presT&&st?st.shown:0,noshow:by("No-Show").length,apps,issued:by("Policy Issued"),alp:apps.reduce((a,r)=>a+r.premium,0)}}
 function weekNums(w,N){const inW=r=>r.date>=w.start&&r.date<=w.end;const apps=N.apps.filter(inW);
   return {pres:S.tracker.filter(r=>r.type==="Presentation Held"&&inW(r)).length,sales:apps.length,alp:apps.reduce((a,r)=>a+r.premium,0)}}
@@ -285,7 +291,8 @@ function weekNums(w,N){const inW=r=>r.date>=w.start&&r.date<=w.end;const apps=N.
 /* ---------- Dashboard ---------- */
 function renderDashboard(){
   const N=nov(), st=totals(), pres=N.pres||N.presFromStats, wk=weekOf(TODAY)||PLAN.weeks[PLAN.weeks.length-1];
-  const wn=weekNums(wk,N), up=S.leads.filter(l=>l.pres&&l.pres>=TODAY).sort((a,b)=>a.pres<b.pres?-1:1);
+  const wn=weekNums(wk,N), up=S.leads.filter(l=>l.pres&&l.pres>=TODAY).sort((a,b)=>a.pres<b.pres?-1:1),
+    appts=S.tracker.filter(r=>r.type==="Appointment Set"&&!r.interview&&!r.canceled&&r.appt&&r.appt.slice(0,10)>=TODAY).sort((a,b)=>a.appt<b.appt?-1:1);
   const follow=S.leads.filter(l=>l.status==="Follow-up"), callBack=S.queue.filter(q=>/^call back first/i.test(q.step));
   const stepCounts={};S.queue.forEach(q=>stepCounts[q.step]=(stepCounts[q.step]||0)+1);
   const steps=Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
@@ -296,14 +303,15 @@ function renderDashboard(){
        ${kpi("Presentations",pres,`of ${PLAN.pres} planned${N.pres?"":N.presFromStats?" · bookings shown":""}`,pres/PLAN.pres)}
        ${kpi("Sales",N.apps.length,`of ${PLAN.sales} planned`,N.apps.length/PLAN.sales)}
        ${kpi("Dials",st?st.dials.toLocaleString("en-CA"):"—",st?`${MONTH_NAME}${st.src?" · from Kixie":""} · ${pct(st.conn,st.dials)} reach someone`:"")}
-       ${kpi("Bookings",st?st.made:"—",st?`${MONTH_NAME} · ${pct(st.shown,st.made)} showed up`:"")}</div>`+srcNote("tracker","stats"))+
+       ${kpi("Bookings",st?st.made:"—",st?`${MONTH_NAME}${st.bookSrc?" · from Calendly":""} · ${pct(st.shown,st.made)} showed up`:"")}</div>`+srcNote("tracker","stats"))+
    (todayRows.length?sec("Today",fd(TODAY),`<div class="list">${todayRows.map(r=>`<div class="item" style="grid-template-columns:minmax(0,1fr)"><span><span class="p">${esc(r.activity)}</span><br><span class="m">${esc(r.time)}${r.group?" · "+esc(r.group):""}</span></span></div>`).join("")}</div>`):"")+
    sec("This week",esc(wk.label),
      table(["","Plan","So far"],[tr(["Presentations",wk.pres,wn.pres]),tr(["Sales",wk.sales,wn.sales]),tr(["ALP",money(PLAN.avg*wk.sales),money(wn.alp)])]))+
    `<div class="two">`+
-   sec("Next presentations",up.length?`${up.length} booked`:"",
-     up.length?`<div class="list">${up.slice(0,7).map(l=>`<div class="item"><span class="d">${fd(l.pres)}</span><span class="p">${esc(l.name)}</span><span class="m">${esc(l.type)}</span></div>`).join("")}</div>`
-       :empty("Nothing booked yet.","Presentation dates come from the Presentation Date column on All Leads Master."))+
+   sec("Next presentations",appts.length?`${appts.length} booked`:up.length?`${up.length} booked · from All Leads Master`:"",
+     appts.length?`<div class="list">${appts.slice(0,7).map(r=>`<div class="item" style="grid-template-columns:96px minmax(0,1fr) auto"><span class="d">${fd(r.appt.slice(0,10))}<br>${esc(apptTime(r.appt))}</span><span class="p">${esc(r.name)}</span><span class="m">${esc(r.notes)}</span></div>`).join("")}</div>`
+     :up.length?`<div class="list">${up.slice(0,7).map(l=>`<div class="item"><span class="d">${fd(l.pres)}</span><span class="p">${esc(l.name)}</span><span class="m">${esc(l.type)}</span></div>`).join("")}</div>`
+       :empty("Nothing booked yet.","Calendly bookings show up here with their time. Cancellations drop off."))+
    sec("Needs a follow-up",`${follow.length} ${follow.length===1?"lead":"leads"} replied`,
      follow.length?`<div class="list">${follow.slice(0,6).map(l=>`<div class="item" style="grid-template-columns:minmax(0,1fr) auto"><span><span class="p">${esc(l.name)}</span><br><span class="m">${esc(l.outcome.split(";")[0])}</span></span>${statusChip(l.type)}</div>`).join("")}</div>`
        :empty("No replies waiting.","Leads that texted back or talked to you show up here."))+
@@ -417,16 +425,16 @@ function renderActivity(){
   const label=actLabel(f);
   if(f.y==="all"){f.m="all";f.d="all"}
   if(!R.length){$("p-activity").innerHTML=srcNote("tracker")+sec("Activity",esc(label),controls+empty("No activity in "+esc(label)+".","Pick another period, or tap This month."));return}
-  const of=t=>R.filter(r=>r.type===t), calls=of("Call"), conv=calls.filter(r=>r.conn).length, book=of("Appointment Set").filter(r=>!r.interview).length,
+  const of=t=>R.filter(r=>r.type===t), calls=of("Call"), conv=calls.filter(r=>r.conn).length, book=of("Appointment Set").filter(r=>!r.interview&&!r.canceled).length, canc=of("Booking Canceled").length,
     pres=of("Presentation Held").length, ns=of("No-Show").length, apps=of("Application Submitted"), alp=apps.reduce((a,r)=>a+r.premium,0), tx=of("Text").length, rp=of("Text Reply").length;
   const days={};R.forEach(r=>{const d=days[r.date]=days[r.date]||{date:r.date,dials:0,conv:0,txt:0,rep:0,book:0,pres:0,ns:0,apps:0,alp:0};
-    if(r.type==="Call"){d.dials++;if(r.conn)d.conv++}else if(r.type==="Text")d.txt++;else if(r.type==="Text Reply")d.rep++;else if(r.type==="Appointment Set"&&!r.interview)d.book++;else if(r.type==="Presentation Held")d.pres++;
+    if(r.type==="Call"){d.dials++;if(r.conn)d.conv++}else if(r.type==="Text")d.txt++;else if(r.type==="Text Reply")d.rep++;else if(r.type==="Appointment Set"&&!r.interview&&!r.canceled)d.book++;else if(r.type==="Presentation Held")d.pres++;
     else if(r.type==="No-Show")d.ns++;else if(r.type==="Application Submitted"){d.apps++;d.alp+=r.premium}});
   const all=Object.values(days).sort((a,b)=>a.date<b.date?1:-1), drows=all.slice(0,31);
   const lists={};calls.filter(r=>r.list).forEach(r=>{const l=lists[r.list]=lists[r.list]||{n:r.list,d:0,c:0};l.d++;if(r.conn)l.c++});
   const sorted=sortEntries(R,S.ef.sort), shown=sorted.slice(0,S.ef.limit), multi=f.y==="all"||f.m==="all";
   $("p-activity").innerHTML=srcNote("tracker")+
-   sec("Activity",esc(label)+` · ${R.length} ${R.length===1?"entry":"entries"}`,controls+`<div class="kpis">${kpi("Dials",calls.length,"Kixie calls")}${kpi("Conversations",conv,pct(conv,calls.length)+" of dials")}${kpi("Texts",tx,rp+(rp===1?" reply":" replies"))}${kpi("Bookings",book,"recruiting interviews left out")}${kpi("Presentations",pres,ns+" no-shows")}${kpi("Applications",apps.length,money(alp)+" ALP")}</div>`)+
+   sec("Activity",esc(label)+` · ${R.length} ${R.length===1?"entry":"entries"}`,controls+`<div class="kpis">${kpi("Dials",calls.length,"Kixie calls")}${kpi("Conversations",conv,pct(conv,calls.length)+" of dials")}${kpi("Texts",tx,rp+(rp===1?" reply":" replies"))}${kpi("Bookings",book,(canc?canc+" canceled · ":"")+"interviews left out")}${kpi("Presentations",pres,ns+" no-shows")}${kpi("Applications",apps.length,money(alp)+" ALP")}</div>`)+
    (f.d==="all"?sec("By day",all.length>31?"latest 31 days with activity":`${all.length} ${all.length===1?"day":"days"} with activity`,table(["Day","Dials","Convos","Texts","Replies","Bookings","Pres.","No-shows","Apps","ALP"],drows.map(d=>tr([f.y==="all"||f.m==="all"?fd(d.date)+" "+d.date.slice(0,4):fd(d.date),d.dials,d.conv,d.txt,d.rep,d.book,d.pres,d.ns,d.apps,money(d.alp)])))):"")+
    (Object.keys(lists).length?sec("By power list","",table(["List","Dials","Convos","Reach"],Object.values(lists).sort((a,b)=>b.d-a.d).map(l=>tr([esc(l.n),l.d,l.c,pct(l.c,l.d)])))):"")+
    sec("Entries",`${R.length} in ${esc(label)}`,`<div class="row"><select id="ef-sort" aria-label="Sort entries">${SORTS.map(([v,t])=>`<option value="${v}"${S.ef.sort===v?" selected":""}>${t}</option>`).join("")}</select></div>

@@ -10,7 +10,7 @@ Workflow ID `oifhCUJNZSSW5rLc`. One workflow, four groups of steps. It writes to
 |---|---|---|
 | Log Kixie calls | Kixie End Call and PowerDial webhook (`/webhook/kixie-call`, header `X-Kixie-Secret`) | Adds a `Call` row, or `Recruiting Call` for lists marked Recruiting on the `Power Lists` tab. Unknown list IDs are added to `Power Lists` to be named. |
 | Log form | n8n form `lead-activity-log` | Adds a row of any type: New Lead, Call, Appointment Set, Presentation Held, No-Show, Application Submitted (with ALP), Policy Issued, Follow-Up. Syncs the contact and a note to HubSpot. |
-| Calendly | Calendly `invitee.created` | Adds an `Appointment Set` row and a HubSpot note. |
+| Calendly | Calendly `invitee.created` and `invitee.canceled` | A booking adds an `Appointment Set` row (with Appointment Time and Booking ID) and a HubSpot note. A cancellation or reschedule adds a `Booking Canceled` row with the same Booking ID. |
 | Log Kixie texts | Kixie SMS webhook (`/webhook/kixie-sms`, same `X-Kixie-Secret` header) | Adds a `Text` row for each text you send and a `Text Reply` row for each reply, dated in Regina time, with the message in Notes. Kixie sends `direction` as "outgoing" or "incoming" (both confirmed with real texts). `messageDate` is ISO with a Z on sent texts and `yyyy-MM-dd HH:mm:ss` UTC on received ones; both are handled. |
 | Daily progress report | Every morning at 8 AM | Reads the `Tracker` tab, works out progress against the November $20k ALP plan and emails it. |
 
