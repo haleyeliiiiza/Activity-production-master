@@ -230,7 +230,7 @@ function parseSched(v){return v.filter(r=>r.some(c=>String(c||"").trim())).map(r
   return {day,date:parseLong(day),actual:/actual/i.test(day),label:day.replace(/\s*-\s*ACTUAL/i,"").replace(/,\s*\d{4}$/,""),time:cell(r,1),group:cell(r,2),activity:cell(r,3),notes:cell(r,4),script:cell(r,5)}})}
 const parseCadence=v=>v.filter(r=>cell(r,0)).map(r=>({attempt:cell(r,0),when:cell(r,1),channel:cell(r,2),action:cell(r,3),none:cell(r,4),yes:cell(r,5),no:cell(r,6)}));
 // These plan rows are left out of the page (they stay on the sheet).
-const HIDE_PLAN=/^(close rate|risk \/ note|new tracker in november)/i;
+const HIDE_PLAN=/^(close rate|risk \/ note|new tracker in november|daily contact pace|if presentation rate is lower|lead pool)/i;
 const parsePlan=v=>v.filter(r=>cell(r,0)&&!HIDE_PLAN.test(cell(r,0))).map(r=>({label:cell(r,0),detail:cell(r,1)}));
 const parseScripts=v=>v.filter(r=>cell(r,0)).map(r=>({name:cell(r,0),use:cell(r,1),text:cell(r,2)}));
 const SK=["dials","conn","texts","replies","made","shown","noshow","pres","sales","alp"];
