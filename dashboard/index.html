@@ -153,7 +153,7 @@ details.scr .sn{font-weight:600}
 // Sheet ID is filled in when the page is published (see README). It is never committed to the public repo.
 const SID="__SHEET_ID__", SRV="Google Sheets";
 // Add a tab: append it here, add a <section id="p-NAME"> above and a render function below.
-const TABS=[["dashboard","Dashboard"],["plan","Nov 20k plan"],["leads","Leads"],["calllist","Call list"],["schedule","Weekly schedule"],["cadence","Cadence"],["scripts","Scripts"],["activity","Activity"],["stats","Stats"],["production","Production"]];
+const TABS=[["dashboard","Dashboard"],["plan","Monthly Plan"],["leads","Leads"],["calllist","Call list"],["schedule","Weekly schedule"],["cadence","Cadence"],["scripts","Scripts"],["activity","Activity"],["stats","Stats"],["production","Production"]];
 // November 2026 plan, from the "November 20k ALP Plan" tab.
 // n8n page where a past appointment is marked as held or no-show (the booking ID goes on the end).
 const OUTCOME_URL="https://haleyeliiiiza.app.n8n.cloud/webhook/appt-outcome?booking=";
@@ -349,7 +349,7 @@ function renderPlan(){
   const blocks=S.plan.map((r,i)=>{if(/^week plan/i.test(r.label)){if(weeksDone)return "";weeksDone=true;return weekTable()}
     return `<div class="nt"><h3>${esc(r.label)}</h3>${r.detail.split(/\s*\n\s*/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join("")}</div>`}).join("");
   $("p-plan").innerHTML=srcNote("plan","tracker")+
-   sec("November 20k ALP plan",`${money(PLAN.goal)} · ${PLAN.sales} sales · ${PLAN.pres} presentations`,
+   sec("ALP Goal: 20K",`${money(PLAN.goal)} · ${PLAN.sales} sales · ${PLAN.pres} presentations`,
      `<div class="kpis">${kpi("ALP so far",money(N.alp),`${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day for ${remaining} working days`,N.alp/PLAN.goal)}${kpi("Sales",N.apps.length,`of ${PLAN.sales}`,N.apps.length/PLAN.sales)}${kpi("Presentations",pres,`of ${PLAN.pres}`,pres/PLAN.pres)}${kpi("Close rate",pres?pct(N.apps.length,pres):"—","plan "+Math.round(PLAN.close*100)+"%")}</div>`)+
    (S.plan.length?blocks:sec("Plan","",empty("The plan tab is empty.","Add the goal and weekly targets to the November 20k ALP Plan tab.")))}
 
