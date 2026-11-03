@@ -14,6 +14,7 @@ Workflow ID `oifhCUJNZSSW5rLc`. One workflow, four groups of steps. It writes to
 | Log Kixie texts | Kixie SMS webhook (`/webhook/kixie-sms`, same `X-Kixie-Secret` header) | Adds a `Text` row for each text you send and a `Text Reply` row for each reply, dated in Regina time, with the message in Notes. Kixie sends `direction` as "outgoing" or "incoming" (both confirmed with real texts). `messageDate` is ISO with a Z on sent texts and `yyyy-MM-dd HH:mm:ss` UTC on received ones; both are handled. |
 | Appointment outcomes | Opened from a link: GET `/webhook/appt-outcome?booking=<Booking ID>`, then a button tap POSTs to `/webhook/appt-outcome-save` | Shows the appointment with **Presentation held** and **No-show** buttons. A tap adds a `Presentation Held` or `No-Show` row with the same Booking ID and Appointment Time. It refuses unknown, canceled and already-logged bookings, so a double tap cannot log twice. The booking ID in the link is the only credential. |
 | Lead import | Every morning at 7 AM | Adds new leads from the `Lead Import` tab (written by Muse) to the `Leads` tab, skipping any lead whose phone number (last 10 digits) is already there. Also contains a one-time webhook (`/webhook/migrate-lead-tabs`) that merged All Leads Master and Call Lists into `Leads`; it does nothing once `Leads` has data. |
+| Text drafting and approval | At 9 AM, 1 PM, 3 PM and 5 PM (start of each call block); approval page opened from the email | Drafts the texts that are due (first text for new leads, follow-up after a no-answer call, call-control text, booking reminder), saves them to `Text Queue` and emails an approval link. The page (`/webhook/text-approval?batch=...`) shows each text with a checkbox; approving records each one as `Dry run`, `Skipped` or `Expired`. Rules in `Text Settings`, wording in `Scripts`. **Nothing is sent to Kixie yet.** |
 | Daily progress report | Every morning at 8 AM | Reads the `Tracker` tab, works out progress against the November $20k ALP plan and emails it. |
 
 ### Daily progress report
@@ -31,6 +32,12 @@ The report's **Calculate Progress** step is [calculate-progress.js](calculate-pr
 The plan numbers are constants at the top of the code. When the next month's plan exists, change them there and in the dashboard page together.
 
 Source is Tracker only. Dials and bookings that are only typed on the `Stats` tab are not in the email.
+
+### Automatic texting
+
+- A lead is skipped if it opted out (a reply containing stop, unsubscribe, not interested, wrong number and similar), replied since our last text, is booked, is stopped or unreachable, or already has a draft or text today. Texts only go out inside the lead's call block (Regina time), and a batch expires at the end of the day.
+- Sending through Kixie is the next step: the plan is a POST to Kixie's Send SMS API (`apig.kixie.com/app/event`, event `sms`) with the API key held as an n8n credential. Until it is connected, approving only records a dry run.
+- Each batch link carries a random code; anyone with the link could approve that batch, so do not forward the email.
 
 ### Not stored here
 

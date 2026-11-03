@@ -39,6 +39,35 @@ One row per lead. Columns: Lead Type, Name, Phone, Province, Email, Sponsor, Ben
 - The four history columns hold the dial and text counts and dates typed before Kixie logging began. Stop typing them. The hub adds Kixie dials and texts from the Tracker (dated after 2026-10-31) on top, matched by the last 10 digits of the phone.
 - This tab replaces **All Leads Master** and **Call Lists**, which can be archived. The hub still falls back to them if Leads is empty.
 
+## Tab: Text Settings
+
+Rules for automatic texting, read by n8n each time it runs. Change a value here and the next run uses it.
+
+| Setting | Default | What it does |
+|---|---|---|
+| Dry run | Yes | Yes = nothing is sent; approving a batch only marks the drafts "Dry run". Leave on until Kixie sending is connected and tested. |
+| Send days | Mon-Fri | Days drafts are created (Regina time). |
+| Default window start / end hour | 13 / 19 | Texting window for a lead with no call block rule. |
+| Reminder window start / end hour | 9 / 20 | Hours a booking reminder can go out. |
+| Reminder hours before | 3 | A reminder is drafted when the appointment starts within this many hours. |
+| Max texts per lead per day | 1 | Reminders are not counted. |
+| First text: days after added | 14 | New leads get a first text if never texted. |
+| Follow-up: days after no-answer call | 3 | Follow-up window after an unanswered Kixie call. |
+| Calendly link: McGruff/ChildSafe, Will Kit, Union | blank | Used in the first text and follow-up. Drafts that need a link are skipped while it is blank. |
+| Approval email to, Kixie sender email | your address | Where approval emails go, and the Kixie user texts are sent as. |
+| Call block: ON Will Kit | 1-3 PM | Best call block (Regina time) by province. |
+| Call block: ON other | 3-5 PM | Ontario leads that are not Will Kit. |
+| Call block: AB, SK | 3-5 PM | |
+| Call block: BC | 5-7 PM | A province with no row uses the default window. |
+
+Message wording comes from the **Scripts** tab (First text, Follow-up text, Text - call control, Booking reminder text). Edit a script there and the next draft uses it. Trailing notes such as "- DRAFT, approve before sending" are removed from the text sent.
+
+The call block rules fill **Best Call Block** for each lead on the Leads tab and for every new lead the daily import adds. A block written on a lead's own row takes priority over the rule.
+
+## Tab: Text Queue
+
+One row per drafted text. Columns: Draft ID, Batch ID, Created, Kind (First text, Follow-up, Call control, Reminder), Lead Type, Name, Phone, Message, Window, Status, Updated, Result, Ref. Status moves from `Pending` to `Dry run`, `Sent`, `Skipped` (unticked), `Expired` (earlier day, or outside the lead's call block when approved) or `Blocked`. Ref holds the Calendly booking ID for reminders.
+
 ## Tab: Power Lists
 
 | Col | Header | Notes |
