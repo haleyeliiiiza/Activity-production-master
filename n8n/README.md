@@ -12,6 +12,7 @@ Workflow ID `oifhCUJNZSSW5rLc`. One workflow, four groups of steps. It writes to
 | Log form | n8n form `lead-activity-log` | Adds a row of any type: New Lead, Call, Appointment Set, Presentation Held, No-Show, Application Submitted (with ALP), Policy Issued, Follow-Up. Syncs the contact and a note to HubSpot. |
 | Calendly | Calendly `invitee.created` and `invitee.canceled` | A booking adds an `Appointment Set` row (with Appointment Time and Booking ID) and a HubSpot note. A cancellation or reschedule adds a `Booking Canceled` row with the same Booking ID. |
 | Log Kixie texts | Kixie SMS webhook (`/webhook/kixie-sms`, same `X-Kixie-Secret` header) | Adds a `Text` row for each text you send and a `Text Reply` row for each reply, dated in Regina time, with the message in Notes. Kixie sends `direction` as "outgoing" or "incoming" (both confirmed with real texts). `messageDate` is ISO with a Z on sent texts and `yyyy-MM-dd HH:mm:ss` UTC on received ones; both are handled. |
+| Appointment outcomes | Opened from a link: GET `/webhook/appt-outcome?booking=<Booking ID>`, then a button tap POSTs to `/webhook/appt-outcome-save` | Shows the appointment with **Presentation held** and **No-show** buttons. A tap adds a `Presentation Held` or `No-Show` row with the same Booking ID and Appointment Time. It refuses unknown, canceled and already-logged bookings, so a double tap cannot log twice. The booking ID in the link is the only credential. |
 | Daily progress report | Every morning at 8 AM | Reads the `Tracker` tab, works out progress against the November $20k ALP plan and emails it. |
 
 ### Daily progress report
@@ -22,6 +23,7 @@ The report's **Calculate Progress** step is [calculate-progress.js](calculate-pr
 - It compares ALP to the weekly plan (16 / 16 / 16 / 19 presentations and 5 sales a week at $1,000 average) and says whether you are ahead or behind.
 - It shows this week's presentations, sales and ALP against target, plus presentations held, no-shows, close rate, dials and conversations.
 - Conversations are calls whose Notes start with `Connected`. Recruiting interviews are left out of bookings.
+- It lists appointments from the last 14 days that have started and have no outcome, each with a link to the outcome page. An appointment counts as done when an outcome row has its Booking ID, or (older manual entries) matches its email, phone or name on or after the appointment day.
 - It links to the Activity Hub.
 - Outside November 2026 it falls back to an even pace across the month's weekdays and skips the weekly table.
 

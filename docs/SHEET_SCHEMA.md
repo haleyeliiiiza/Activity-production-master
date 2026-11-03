@@ -11,7 +11,7 @@ Header row, A to L:
 | Col | Header | Notes |
 |---|---|---|
 | A | Date | YYYY-MM-DD |
-| B | Type | `Call`, `Recruiting Call`, `New Lead`, `Appointment Set`, `Presentation Held`, `No-Show`, `Application Submitted`, `Policy Issued`, `Follow-Up`, `Text` (sent, from Kixie), `Text Reply` (received, from Kixie), `Booking Canceled` (from Calendly, including reschedules) |
+| B | Type | `Call`, `Recruiting Call`, `New Lead`, `Appointment Set`, `Presentation Held`, `No-Show`, `Application Submitted`, `Policy Issued`, `Follow-Up`, `Text` (sent, from Kixie), `Text Reply` (received, from Kixie), `Booking Canceled` (from Calendly, including reschedules); `Presentation Held` and `No-Show` also come from the outcome link, with the booking's Appointment Time and Booking ID |
 | C | Name | Lead name |
 | D | Phone | |
 | E | Email | |
@@ -59,7 +59,7 @@ Weekly Schedule, Cadence, Scripts, Sale by Fri Oct 30, Stage Alignment Plan: pla
 - Dials = `Call` rows. Conversations = `Call` rows whose Notes start with `Connected`, excluding no answer, voicemail and call control.
 - Recruiting calls are never mixed into sales dials.
 - On the dashboard, dials and conversations for the current month come from the Tracker (Kixie) on any day that has `Call` rows, and from the `Stats` tab on days that do not. Texts sent and replies work the same way from `Text` and `Text Reply` rows. Bookings, shown and no-shows still come from the `Stats` tab.
-- Calendly bookings are `Appointment Set`; recruiting interviews are excluded from sales bookings. A booking is dropped from the count when a `Booking Canceled` row has the same Booking ID (or the same name and appointment time on older rows). A reschedule cancels the old booking and creates a new one, so it still counts once. "Next presentations" on the dashboard lists future appointments from the Tracker.
+- Calendly bookings are `Appointment Set`; recruiting interviews are excluded from sales bookings. A booking is dropped from the count when a `Booking Canceled` row has the same Booking ID (or the same name and appointment time on older rows). A reschedule cancels the old booking and creates a new one, so it still counts once. "Next presentations" on the dashboard lists future appointments without an outcome from the Tracker, and "Needs an outcome" lists started appointments from the last 14 days with no `Presentation Held` or `No-Show`. Shown and no-show counts on the dashboard and Stats tab come from those rows, dated on the appointment day.
 - ALP is summed from `Application Submitted` rows.
 - Plan maths: ALP goal / average ALP / close rate = presentations needed; / show rate = bookings needed; x dials per conversation = dials needed.
 

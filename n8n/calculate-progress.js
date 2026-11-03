@@ -8,6 +8,7 @@ const CLOSE_RATE = 0.30;
 const PRES_GOAL = 67;
 const SALES_GOAL = 20;
 const DASHBOARD_URL = 'https://claude.ai/artifact/BgvjeRSt1Mk6cnSUkMyHvo';
+const OUTCOME_URL = 'https://haleyeliiiiza.app.n8n.cloud/webhook/appt-outcome?booking=';
 const TZ = 'America/Regina';
 // Weekly targets (same as the plan tab). Only used while the month is November 2026.
 const PLAN_MONTH = '2026-11';
@@ -78,6 +79,35 @@ if (planOn) {
     + '</table>';
 }
 
+// Appointments from the last 14 days that have started and have no outcome yet
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const when = t => {
+  const m = String(t || '').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/);
+  if (!m) return '';
+  const h = +m[4];
+  return MON[+m[2] - 1] + ' ' + (+m[3]) + ', ' + ((h % 12) || 12) + ':' + m[5] + (h < 12 ? ' AM' : ' PM');
+};
+const nowStamp = $now.setZone(TZ).toFormat('yyyy-MM-dd HH:mm');
+const cutoff = $now.setZone(TZ).minus({ days: 14 }).toFormat('yyyy-MM-dd HH:mm');
+const lc = s => String(s || '').trim().toLowerCase();
+const digits = s => String(s || '').replace(/\D/g, '').slice(-10);
+const canceledIds = new Set(rows.filter(r => r.Type === 'Booking Canceled' && r['Booking ID']).map(r => String(r['Booking ID'])));
+const outcomes = rows.filter(r => r.Type === 'Presentation Held' || r.Type === 'No-Show');
+// An outcome counts when it carries the booking's ID, or (older manual entries) matches the contact on or after the appointment day.
+const hasOutcome = b => outcomes.some(o => (String(o['Booking ID'] || '') === String(b['Booking ID']))
+  || (String(o.Date || '') >= String(b['Appointment Time']).slice(0, 10)
+    && ((lc(o.Email) && lc(o.Email) === lc(b.Email)) || (digits(o.Phone) && digits(o.Phone) === digits(b.Phone)) || (lc(o.Name) && lc(o.Name) === lc(b.Name)))));
+const pending = rows
+  .filter(r => r.Type === 'Appointment Set' && !/interview/i.test(String(r.Notes || '')) && r['Booking ID'] && r['Appointment Time']
+    && String(r['Appointment Time']) <= nowStamp && String(r['Appointment Time']) >= cutoff
+    && !canceledIds.has(String(r['Booking ID'])) && !hasOutcome(r))
+  .sort((a, b) => String(a['Appointment Time']).localeCompare(String(b['Appointment Time'])))
+  .slice(0, 10);
+const outcomeHtml = pending.length
+  ? '<h3>Needs an outcome</h3><ul>' + pending.map(b => '<li>' + esc(b.Name) + ' &middot; ' + esc(when(b['Appointment Time'])) + ' &middot; <a href="' + OUTCOME_URL + encodeURIComponent(b['Booking ID']) + '">Mark held or no-show</a></li>').join('') + '</ul>'
+  : '';
+
 const html = '<h2>Production Progress - ' + month + '</h2>'
   + '<p><b>ALP submitted:</b> ' + money(alp) + ' of ' + money(GOAL) + ' (' + pct + '%) &middot; ' + pace + '</p>'
   + '<p><b>Still needed:</b> ' + money(gap) + ' over ' + remainingDays + ' working days (about ' + money(perDay) + ' a day)</p>'
@@ -87,9 +117,10 @@ const html = '<h2>Production Progress - ' + month + '</h2>'
   + '<li>Sales (applications submitted): ' + apps.length + (planOn ? ' of ' + SALES_GOAL : '') + (presRows.length ? ' &middot; close rate ' + Math.round(apps.length / presRows.length * 100) + '% (plan ' + Math.round(CLOSE_RATE * 100) + '%)' : '') + '</li>'
   + '<li>Policies issued: ' + of('Policy Issued').length + '</li>'
   + '<li>Dials: ' + calls.length + ' &middot; conversations: ' + connected.length + '</li>'
-  + '<li>Appointments set: ' + bookings.length + ' (recruiting interviews left out)</li>'
+  + '<li>Appointments set: ' + bookings.filter(b => !canceledIds.has(String(b['Booking ID']))).length + ' (canceled and recruiting interviews left out)</li>'
   + '<li>New leads: ' + of('New Lead').length + ' &middot; follow-ups: ' + of('Follow-Up').length + '</li>'
   + '</ul>'
+  + outcomeHtml
   + '<p><a href="' + DASHBOARD_URL + '">Open the Activity Hub</a></p>';
 
 return [{ json: { html, subject: 'Daily Production Report: ' + money(alp) + ' / ' + money(GOAL) + ' (' + pace + ')' } }];

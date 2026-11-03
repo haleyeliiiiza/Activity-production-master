@@ -88,6 +88,8 @@ td.neg{color:var(--neg)} td.dim,.dim{color:var(--muted)}
 .empty{border:1px dashed var(--sage);border-radius:8px;padding:20px 18px;color:var(--muted);max-width:62ch}
 .empty b{color:var(--forest)}
 .more{all:unset;cursor:pointer;color:var(--green);font-weight:600;font-size:13.5px;padding:6px 0}
+.lnk{color:var(--green);font-weight:600;text-decoration:none;white-space:nowrap}
+.lnk:hover{text-decoration:underline}
 .chartbox{overflow-x:auto}
 svg text{font-family:var(--f-ui)}
 .ax{fill:var(--muted);font-size:11px}
@@ -153,6 +155,8 @@ const SID="__SHEET_ID__", SRV="Google Sheets";
 // Add a tab: append it here, add a <section id="p-NAME"> above and a render function below.
 const TABS=[["dashboard","Dashboard"],["plan","Nov 20k plan"],["leads","Leads"],["calllist","Call list"],["schedule","Weekly schedule"],["cadence","Cadence"],["scripts","Scripts"],["activity","Activity"],["stats","Stats"],["production","Production"]];
 // November 2026 plan, from the "November 20k ALP Plan" tab.
+// n8n page where a past appointment is marked as held or no-show (the booking ID goes on the end).
+const OUTCOME_URL="https://haleyeliiiiza.app.n8n.cloud/webhook/appt-outcome?booking=";
 const PLAN={month:"2026-11",goal:20000,avg:1000,close:0.30,pres:67,sales:20,
   weeks:[{label:"Nov 2–6",start:"2026-11-02",end:"2026-11-06",pres:16,sales:5},{label:"Nov 9–13",start:"2026-11-09",end:"2026-11-13",pres:16,sales:5},
          {label:"Nov 16–20",start:"2026-11-16",end:"2026-11-20",pres:16,sales:5},{label:"Nov 23–30",start:"2026-11-23",end:"2026-11-30",pres:19,sales:5}]};
@@ -199,10 +203,16 @@ async function getRange(range){const r=await S.mcp.callTool(SRV,"get_values",{sp
 const connected=n=>/^connected/i.test(n)&&!/no answer|voicemail|call control/i.test(n);
 function parseTracker(v){return v.filter(r=>r[0]||r[1]).map(r=>{const notes=String(r[7]||"");
   return {date:parseDate(r[0]),type:String(r[1]||"").trim(),name:String(r[2]||"").trim(),premium:num(r[5]),source:String(r[6]||"").trim(),
-    notes,disp:notes.split("|")[0].trim(),conn:connected(notes),dir:(t=>t==="Text Reply"?"in":t==="Text"?"out":t==="Call"?(/inbound/i.test(notes)?"in":"out"):"")(String(r[1]||"").trim()),interview:/interview/i.test(notes),list:String(r[9]||"").trim(),appt:String(r[10]||"").trim(),bid:String(r[11]||"").trim()}}).filter(r=>r.date)}
+    notes,disp:notes.split("|")[0].trim(),conn:connected(notes),dir:(t=>t==="Text Reply"?"in":t==="Text"?"out":t==="Call"?(/inbound/i.test(notes)?"in":"out"):"")(String(r[1]||"").trim()),interview:/interview/i.test(notes),list:String(r[9]||"").trim(),appt:String(r[10]||"").trim(),bid:String(r[11]||"").trim(),phone:String(r[3]||"").trim(),email:String(r[4]||"").trim().toLowerCase()}}).filter(r=>r.date)}
 // A booking is canceled when a Booking Canceled row shares its Booking ID, or its name and appointment time (rows logged before Booking IDs existed).
 function markCanceled(T){const ids=new Set(),keys=new Set();T.filter(r=>r.type==="Booking Canceled").forEach(r=>{if(r.bid)ids.add(r.bid);if(r.appt)keys.add(r.name.toLowerCase()+"|"+r.appt)});
   T.forEach(r=>{r.canceled=r.type==="Appointment Set"&&Boolean((r.bid&&ids.has(r.bid))||(r.appt&&keys.has(r.name.toLowerCase()+"|"+r.appt)))});return T}
+// Past appointments get an outcome from a Presentation Held / No-Show row with the same Booking ID, or (older manual entries) the same contact on or after the appointment day.
+function markOutcome(T){const oc=T.filter(r=>r.type==="Presentation Held"||r.type==="No-Show"),lc=x=>String(x||"").trim().toLowerCase(),dg=x=>String(x||"").replace(/\D/g,"").slice(-10);
+  T.forEach(r=>{r.outcome="";if(r.type!=="Appointment Set"||r.canceled||!r.appt)return;
+    const o=oc.find(x=>(x.bid&&x.bid===r.bid)||(x.date>=r.appt.slice(0,10)&&((x.email&&x.email===r.email)||(dg(x.phone)&&dg(x.phone)===dg(r.phone))||(lc(x.name)&&lc(x.name)===lc(r.name)))));
+    if(o)r.outcome=o.type==="No-Show"?"noshow":"held"});return T}
+const reginaStamp=ms=>new Date(ms).toLocaleString("sv-SE",{timeZone:"America/Regina"}).slice(0,16);
 const apptTime=a=>{const m=String(a||"").match(/(\d{2}):(\d{2})$/);if(!m)return "";const h=+m[1];return ((h%12)||12)+":"+m[2]+(h<12?" AM":" PM")};
 function statusOf(o){o=String(o||"").trim();if(!o)return "Untouched";
   if(/booked/i.test(o))return "Booked"; if(/unreachable|bad number/i.test(o))return "Unreachable";
@@ -233,18 +243,23 @@ function parseStats(v){if(!v.length)return null;const h=(v[0]||[]).map(x=>String
 const MONTH=TODAY.slice(0,7), MONTH_NAME=["January","February","March","April","May","June","July","August","September","October","November","December"][+MONTH.slice(5)-1];
 // Stats rows for the current month. The "MTD to <date>" opening row counts only when its date is in the current month.
 // Dials and conversations come from the Tracker (Kixie) for any day it has call rows; every other number comes from the Stats tab.
-function kixieDays(){const m={};S.tracker.filter(r=>r.date.startsWith(MONTH)).forEach(r=>{
-  const book=r.type==="Appointment Set"&&!r.interview;
-  if(r.type!=="Call"&&r.type!=="Text"&&r.type!=="Text Reply"&&!book)return;
-  const d=m[r.date]=m[r.date]||{dials:0,conn:0,texts:0,replies:0,made:0,call:false,txt:false,bk:false};
-  if(r.type==="Call"){d.call=true;d.dials++;if(r.conn)d.conn++}else if(book){d.bk=true;if(!r.canceled)d.made++}else{d.txt=true;if(r.type==="Text")d.texts++;else d.replies++}});return m}
+function kixieDays(){const m={},blank=()=>({dials:0,conn:0,texts:0,replies:0,made:0,shown:0,noshow:0,call:false,txt:false,bk:false,oc:false});
+  S.tracker.filter(r=>r.date.startsWith(MONTH)).forEach(r=>{
+    const book=r.type==="Appointment Set"&&!r.interview;
+    if(r.type!=="Call"&&r.type!=="Text"&&r.type!=="Text Reply"&&!book)return;
+    const d=m[r.date]=m[r.date]||blank();
+    if(r.type==="Call"){d.call=true;d.dials++;if(r.conn)d.conn++}else if(book){d.bk=true;if(!r.canceled)d.made++}else{d.txt=true;if(r.type==="Text")d.texts++;else d.replies++}});
+  // shown and no-shows count on the appointment day when the row has one, otherwise the day it was logged
+  S.tracker.filter(r=>r.type==="Presentation Held"||r.type==="No-Show").forEach(r=>{const dt=r.appt?r.appt.slice(0,10):r.date;if(!dt.startsWith(MONTH))return;
+    const d=m[dt]=m[dt]||blank();d.oc=true;if(r.type==="Presentation Held")d.shown++;else d.noshow++});
+  return m}
 const kixieOn=()=>S.tracker.some(r=>r.type==="Call"&&r.date.startsWith(MONTH));
 const kixieBookOn=()=>S.tracker.some(r=>r.type==="Appointment Set"&&!r.interview&&r.date.startsWith(MONTH));
 const kixieTextOn=()=>S.tracker.some(r=>(r.type==="Text"||r.type==="Text Reply")&&r.date.startsWith(MONTH));
 function statDays(all){if(!S.stats)return [];if(all)return S.stats.days;
   const base=S.stats.days.filter(d=>d.date.startsWith(MONTH)),k=kixieDays(),dates=Object.keys(k);if(!dates.length)return base;
   const by={};base.forEach(d=>by[d.date]={...d});
-  dates.forEach(dt=>{const o=by[dt]=by[dt]||Object.fromEntries([...SK.map(x=>[x,0]),["date",dt]]);const k0=k[dt];if(k0.call){o.dials=k0.dials;o.conn=k0.conn}if(k0.txt){o.texts=k0.texts;o.replies=k0.replies}if(k0.bk)o.made=k0.made});
+  dates.forEach(dt=>{const o=by[dt]=by[dt]||Object.fromEntries([...SK.map(x=>[x,0]),["date",dt]]);const k0=k[dt];if(k0.call){o.dials=k0.dials;o.conn=k0.conn}if(k0.txt){o.texts=k0.texts;o.replies=k0.replies}if(k0.bk)o.made=k0.made;if(k0.oc){o.shown=k0.shown;o.noshow=k0.noshow}});
   return Object.values(by).sort((a,b)=>a.date<b.date?-1:1)}
 function totals(all){const st=S.stats;if(!st)return null;const useBase=st.base&&(all||(st.baseDate&&st.baseDate.startsWith(MONTH)));const t={};
   SK.forEach(k=>t[k]=(useBase?st.base[k]:0)+statDays(all).reduce((a,d)=>a+d[k],0));t.src=!all&&kixieOn()?"Kixie":"";t.textSrc=!all&&kixieTextOn()?"Kixie":"";t.bookSrc=!all&&kixieBookOn()?"Tracker":"";return t}
@@ -257,7 +272,7 @@ async function load(){
   const keys=Object.keys(jobs), res=await Promise.allSettled(keys.map(k=>jobs[k]));
   S.err={};let bad=0,first=null;
   res.forEach((r,i)=>{const k=keys[i];if(r.status==="fulfilled"){const v=r.value;
-      if(k==="tracker")S.tracker=markCanceled(parseTracker(v));else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else if(k==="sched")S.sched=parseSched(v);else if(k==="cadence")S.cadence=parseCadence(v);else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="plan")S.plan=parsePlan(v);else S.stats=parseStats(v)}
+      if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else if(k==="sched")S.sched=parseSched(v);else if(k==="cadence")S.cadence=parseCadence(v);else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="plan")S.plan=parsePlan(v);else S.stats=parseStats(v)}
     else{S.err[k]=r.reason;bad++;first=first||r.reason}});
   S.loaded=true;S.at=new Date();
   showBanner(bad===keys.length?errMsg(first):bad?"Some data didn't load ("+keys.filter(k=>S.err[k]).join(", ")+"). "+errMsg(first):"");
@@ -291,8 +306,10 @@ function weekNums(w,N){const inW=r=>r.date>=w.start&&r.date<=w.end;const apps=N.
 /* ---------- Dashboard ---------- */
 function renderDashboard(){
   const N=nov(), st=totals(), pres=N.pres||N.presFromStats, wk=weekOf(TODAY)||PLAN.weeks[PLAN.weeks.length-1];
-  const wn=weekNums(wk,N), up=S.leads.filter(l=>l.pres&&l.pres>=TODAY).sort((a,b)=>a.pres<b.pres?-1:1),
-    appts=S.tracker.filter(r=>r.type==="Appointment Set"&&!r.interview&&!r.canceled&&r.appt&&r.appt.slice(0,10)>=TODAY).sort((a,b)=>a.appt<b.appt?-1:1);
+  const nowR=reginaStamp(Date.now()), cutR=reginaStamp(Date.now()-14*864e5),
+    pending=S.tracker.filter(r=>r.type==="Appointment Set"&&!r.interview&&!r.canceled&&!r.outcome&&r.appt&&r.appt<=nowR&&r.appt>=cutR).sort((a,b)=>a.appt<b.appt?-1:1),
+    wn=weekNums(wk,N), up=S.leads.filter(l=>l.pres&&l.pres>=TODAY).sort((a,b)=>a.pres<b.pres?-1:1),
+    appts=S.tracker.filter(r=>r.type==="Appointment Set"&&!r.interview&&!r.canceled&&!r.outcome&&r.appt&&r.appt.slice(0,10)>=TODAY).sort((a,b)=>a.appt<b.appt?-1:1);
   const follow=S.leads.filter(l=>l.status==="Follow-up"), callBack=S.queue.filter(q=>/^call back first/i.test(q.step));
   const stepCounts={};S.queue.forEach(q=>stepCounts[q.step]=(stepCounts[q.step]||0)+1);
   const steps=Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
@@ -305,6 +322,7 @@ function renderDashboard(){
        ${kpi("Dials",st?st.dials.toLocaleString("en-CA"):"—",st?`${MONTH_NAME}${st.src?" · from Kixie":""} · ${pct(st.conn,st.dials)} reach someone`:"")}
        ${kpi("Bookings",st?st.made:"—",st?`${MONTH_NAME}${st.bookSrc?" · from Calendly":""} · ${pct(st.shown,st.made)} showed up`:"")}</div>`+srcNote("tracker","stats"))+
    (todayRows.length?sec("Today",fd(TODAY),`<div class="list">${todayRows.map(r=>`<div class="item" style="grid-template-columns:minmax(0,1fr)"><span><span class="p">${esc(r.activity)}</span><br><span class="m">${esc(r.time)}${r.group?" · "+esc(r.group):""}</span></span></div>`).join("")}</div>`):"")+
+   (pending.length?sec("Needs an outcome",`${pending.length} past ${pending.length===1?"appointment":"appointments"}`,`<div class="list">${pending.slice(0,8).map(r=>`<div class="item" style="grid-template-columns:96px minmax(0,1fr) auto"><span class="d">${fd(r.appt.slice(0,10))}<br>${esc(apptTime(r.appt))}</span><span class="p">${esc(r.name)}</span>${r.bid?`<a class="lnk" href="${OUTCOME_URL}${encodeURIComponent(r.bid)}" target="_blank" rel="noopener">Held or no-show</a>`:`<span class="dim">log it on the form</span>`}</div>`).join("")}</div>`):"")+
    sec("This week",esc(wk.label),
      table(["","Plan","So far"],[tr(["Presentations",wk.pres,wn.pres]),tr(["Sales",wk.sales,wn.sales]),tr(["ALP",money(PLAN.avg*wk.sales),money(wn.alp)])]))+
    `<div class="two">`+
