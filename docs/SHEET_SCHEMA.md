@@ -35,7 +35,7 @@ Every morning at 7 AM Regina time n8n adds new rows to **Leads**. A lead is new 
 
 One row per lead. Columns: Lead Type, Name, Phone, Province, Email, Sponsor, Beneficiary, Lead Inbox, Date Added, Outcome, Next Step, Cohort, Best Call Block, Presentation Date, Notes, Dials (history), Texts (history), Call Dates (history), Text Dates (history).
 
-- **Stage** (column T) is the lead's place in the cycle: 0 Not contacted, 1 Text sent, 2 Called, 3 Presented / Booked, 4 Closed. It was set on 2026-11-02 (leads with 4 or more dials and no conversation restarted at 0). New imported leads start at 0. The hub and the text drafting advance a lead from Tracker activity after the baseline date; the sheet column itself is the starting stage.
+- **Stage** (column T) is the lead's place in the cycle: 0 Not contacted, 1 Text sent, 2 Called, 3 Presented / Booked, 4 Closed. It was set on 2026-11-02 (leads with 4 or more dials and no conversation restarted at 0; leads that hit call control went to 4 Closed, and a new call control disposition closes a lead too, with no call control text). New imported leads start at 0. The hub and the text drafting advance a lead from Tracker activity after the baseline date; the sheet column itself is the starting stage.
 - You work Outcome, Next Step, Cohort, Best Call Block, Presentation Date and Notes. A lead is on the call list when it has a Next Step.
 - The four history columns hold the dial and text counts and dates typed before Kixie logging began. Stop typing them. The hub adds Kixie dials and texts from the Tracker (dated after 2026-10-31) on top, matched by the last 10 digits of the phone.
 - This tab replaces **All Leads Master** and **Call Lists**, which can be archived. The hub still falls back to them if Leads is empty.

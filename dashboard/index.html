@@ -381,10 +381,10 @@ const STAGE_BASE="2026-11-02",STAGES=["Not contacted","Text sent","Called","Pres
 const stageName=s=>s===""||s==null?"":s+" "+STAGES[s];
 function leadsFromTab(){const idx=new Map();
   S.tracker.forEach(r=>{if(r.date<=HISTORY_END||(r.type!=="Call"&&r.type!=="Text"))return;const k=dg10(r.phone);if(k.length<7)return;
-    let e=idx.get(k);if(!e){e={dials:0,texts:0,lastDial:"",lastText:""};idx.set(k,e)}
-    if(r.type==="Call"){e.dials++;if(r.date>e.lastDial)e.lastDial=r.date}else{e.texts++;if(r.date>e.lastText)e.lastText=r.date}});
-  return S.leads.map(l=>{const e=idx.get(dg10(l.phone))||{dials:0,texts:0,lastDial:"",lastText:""},hd=lastIso(l.callDates),ht=lastIso(l.textDates);
-    const b=parseInt(l.stage0,10);let st=Number.isNaN(b)?"":b;if(st!==""){if(st<2&&e.lastDial>=STAGE_BASE)st=2;else if(st===0&&e.lastText>=STAGE_BASE)st=1;if(l.status==="Booked"&&st<3)st=3}
+    let e=idx.get(k);if(!e){e={cc:false,dials:0,texts:0,lastDial:"",lastText:""};idx.set(k,e)}
+    if(r.type==="Call"){e.dials++;if(r.date>e.lastDial)e.lastDial=r.date;if(/call control/i.test(r.notes||""))e.cc=true}else{e.texts++;if(r.date>e.lastText)e.lastText=r.date}});
+  return S.leads.map(l=>{const e=idx.get(dg10(l.phone))||{cc:false,dials:0,texts:0,lastDial:"",lastText:""},hd=lastIso(l.callDates),ht=lastIso(l.textDates);
+    const b=parseInt(l.stage0,10);let st=Number.isNaN(b)?"":b;if(st!==""){if(st<2&&e.lastDial>=STAGE_BASE)st=2;else if(st===0&&e.lastText>=STAGE_BASE)st=1;if(l.status==="Booked"&&st<3)st=3;if(e.cc&&st<3)st=4}
     return {...l,stage:st,dials:l.dials+e.dials,texts:l.texts+e.texts,lastDial:e.lastDial>hd?e.lastDial:hd,lastText:e.lastText>ht?e.lastText:ht}})}
 function mergeLeads(){if(S.leadsTab)return leadsFromTab();const map=new Map(),key=(ph,nm)=>dg10(ph).length>=7?dg10(ph):"n:"+String(nm||"").trim().toLowerCase();
   S.leads.forEach(l=>map.set(key(l.phone,l.name),{...l,inQueue:false,step:"",cohort:"",block:"",next:"",lastDial:lastIso(l.callDates),lastText:lastIso(l.textDates)}));
