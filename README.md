@@ -23,8 +23,7 @@ Manual entry ────────────────┘                
 |---|---|---|
 | Dashboard | November goal, today's plan, this week vs. plan, next presentations, follow-ups, pipeline, call queue | all of the below |
 | Monthly Plan | The plan from the sheet with live progress and a week-by-week table | November 20k ALP Plan, Tracker |
-| Leads | Pipeline by status and lead type, searchable lead list | All Leads Master |
-| Call list | Cohorts, next steps, filters by type, province, cohort and next step | Call Lists |
+| Leads | Every lead once, with Call Lists data joined in by phone number: pipeline, status, next step, cohort, best call block, dials and texts. Switch between All leads and the Call list; filter, sort and search | All Leads Master, Call Lists |
 | Weekly schedule | Day-by-day plan, from today or all days, with script links | Weekly Schedule |
 | Cadence | Text and call steps with what to do on no answer, interest or refusal | Cadence |
 | Scripts | Text, call and objection scripts with copy buttons and draft flags | Scripts |

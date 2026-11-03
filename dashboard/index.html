@@ -91,6 +91,14 @@ td.neg{color:var(--neg)} td.dim,.dim{color:var(--muted)}
 .more{all:unset;cursor:pointer;color:var(--green);font-weight:600;font-size:13.5px;padding:6px 0}
 .lnk{color:var(--green);font-weight:600;text-decoration:none;white-space:nowrap}
 .lnk:hover{text-decoration:underline}
+.leads{border-top:1px solid var(--line)}
+.lead{display:grid;gap:3px;padding:12px 0;border-bottom:1px solid var(--line)}
+.lead .lh{display:flex;gap:2px 10px;align-items:baseline;flex-wrap:wrap}
+.lead .lh .p{font-weight:600;overflow-wrap:anywhere}
+.lead .lh .chip{margin-left:auto}
+.lead .lm{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.lead .lm b{color:var(--ink);font-weight:600}
+.lead .lo{font-size:13.5px;overflow-wrap:anywhere}
 .chartbox{overflow-x:auto}
 svg text{font-family:var(--f-ui)}
 .ax{fill:var(--muted);font-size:11px}
@@ -138,7 +146,6 @@ details.scr .sn{font-weight:600}
   <section class="panel" id="p-dashboard"></section>
   <section class="panel" id="p-plan" hidden></section>
   <section class="panel" id="p-leads" hidden></section>
-  <section class="panel" id="p-calllist" hidden></section>
   <section class="panel" id="p-schedule" hidden></section>
   <section class="panel" id="p-cadence" hidden></section>
   <section class="panel" id="p-scripts" hidden></section>
@@ -154,7 +161,7 @@ details.scr .sn{font-weight:600}
 // Sheet ID is filled in when the page is published (see README). It is never committed to the public repo.
 const SID="__SHEET_ID__", SRV="Google Sheets";
 // Add a tab: append it here, add a <section id="p-NAME"> above and a render function below.
-const TABS=[["dashboard","Dashboard"],["plan","Monthly Plan"],["leads","Leads"],["calllist","Call list"],["schedule","Weekly schedule"],["cadence","Cadence"],["scripts","Scripts"],["activity","Activity"],["stats","Stats"],["production","Production"]];
+const TABS=[["dashboard","Dashboard"],["plan","Monthly Plan"],["leads","Leads"],["schedule","Weekly schedule"],["cadence","Cadence"],["scripts","Scripts"],["activity","Activity"],["stats","Stats"],["production","Production"]];
 // November 2026 plan, from the "November 20k ALP Plan" tab.
 // n8n page where a past appointment is marked as held or no-show (the booking ID goes on the end).
 const OUTCOME_URL="https://haleyeliiiiza.app.n8n.cloud/webhook/appt-outcome?booking=";
@@ -187,7 +194,7 @@ const planDay=d=>{const w=weekOf(d);if(!w)return 0;const n=WORKDAYS.filter(x=>x>
 
 /* ---------- state ---------- */
 const S={ef:{sort:"newest",limit:25},af:{y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"},stv:"month",mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,sched:[],cadence:[],scripts:[],plan:[],
-  lf:{type:"all",status:"all",q:"",limit:40},cf:{type:"all",prov:"all",cohort:"all",step:"all",q:"",limit:40},sf:{view:"upcoming"},sc:{q:""}};
+  lf:{view:"all",type:"all",prov:"all",status:"all",step:"all",cohort:"all",block:"all",sort:"name",q:"",limit:40},sf:{view:"upcoming"},sc:{q:""}};
 try{const t=localStorage.getItem("ah:tab");if(t&&TABS.some(x=>x[0]===t))S.tab=t}catch(e){}
 {const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h))S.tab=h}
 
@@ -221,7 +228,7 @@ function statusOf(o){o=String(o||"").trim();if(!o)return "Untouched";
   if(/text reply|talked|will call|mail it|located will|call me/i.test(o))return "Follow-up";
   return "No answer"}
 function parseLeads(v){return v.filter(r=>r[2]).map(r=>({inbox:String(r[0]||"").trim(),type:String(r[1]||"").trim(),name:String(r[2]).trim(),phone:String(r[3]||"").trim(),prov:String(r[4]||"").trim(),
-  dials:num(r[6]),texts:num(r[8]),pres:parseDate(r[9],2026),outcome:String(r[10]||"").trim(),status:statusOf(r[10])}))}
+  dials:num(r[6]),texts:num(r[8]),callDates:String(r[5]||""),textDates:String(r[7]||""),pres:parseDate(r[9],2026),outcome:String(r[10]||"").trim(),status:statusOf(r[10])}))}
 function parseQueue(v){return v.filter(r=>r[4]).map(r=>({type:String(r[1]||"").trim(),prov:String(r[2]||"").trim(),cohort:String(r[3]||"").trim(),name:String(r[4]).trim(),phone:String(r[5]||"").trim(),
   block:String(r[6]||"").trim(),texts:String(r[7]||"").trim(),dials:String(r[8]||"").trim(),next:String(r[9]||"").trim(),step:String(r[9]||"").split(/ - | – /)[0].trim()||"No next step",notes:String(r[10]||"").trim()}))}
 function parseLong(s){const m=String(s).match(/([A-Za-z]{3})\w*\s+(\d{1,2}),\s*(\d{4})/);if(!m)return null;const mi=MON.findIndex(x=>x.toLowerCase()===m[1].toLowerCase());return mi<0?null:iso(m[3],mi+1,+m[2])}
@@ -355,41 +362,55 @@ function renderPlan(){
      `<div class="kpis">${kpi("ALP so far",money(N.alp),`${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day for ${remaining} working days`,N.alp/PLAN.goal)}${kpi("Sales",N.apps.length,`of ${PLAN.sales}`,N.apps.length/PLAN.sales)}${kpi("Presentations",pres,`of ${PLAN.pres}`,pres/PLAN.pres)}${kpi("Close rate",pres?pct(N.apps.length,pres):"—","plan "+Math.round(PLAN.close*100)+"%")}</div>`)+
    (S.plan.length?(weeks.length?weekTable():"")+blocks:sec("Plan","",empty("The plan tab is empty.","Add the goal and weekly targets to the November 20k ALP Plan tab.")))}
 
-/* ---------- Leads ---------- */
+/* ---------- Leads: All Leads Master joined with the Call Lists tab by phone number ---------- */
 const uniq=a=>[...new Set(a.filter(Boolean))].sort();
-function leadFilter(){const f=S.lf,q=f.q.trim().toLowerCase();return S.leads.filter(x=>(f.type==="all"||x.type===f.type)&&(f.status==="all"||x.status===f.status)&&(!q||(x.name+" "+x.phone+" "+x.outcome).toLowerCase().includes(q)))}
-function leadResults(){const f=S.lf, rows=leadFilter(), shown=rows.slice(0,f.limit);
-  if(!rows.length)return empty("No leads match.","Clear the search or pick another type.");
-  return `<div class="n dim" style="font-size:12.5px;margin-bottom:6px">Showing ${shown.length} of ${rows.length}</div>`+
-   table(["Lead","Type","Prov","Dials","Texts","Status","Presentation","Last outcome"],shown.map(l=>tr([esc(l.name)+`<br><span class="dim">${esc(l.phone)}</span>`,esc(l.type),esc(l.prov),l.dials,l.texts,statusChip(l.status),l.pres?fd(l.pres):"",esc(l.outcome.split(";").pop().trim())],{left:[1,2,5,7],wrap:[7]})),{left:[1,2,5,7]})+
+const dg10=x=>String(x||"").replace(/\D/g,"").slice(-10);
+const lastIso=s=>{const d=[...String(s||"").matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g)].map(m=>iso(m[3],+m[1],+m[2])).sort();return d.length?d[d.length-1]:""};
+function mergeLeads(){const map=new Map(),key=(ph,nm)=>dg10(ph).length>=7?dg10(ph):"n:"+String(nm||"").trim().toLowerCase();
+  S.leads.forEach(l=>map.set(key(l.phone,l.name),{...l,inQueue:false,step:"",cohort:"",block:"",next:"",lastDial:lastIso(l.callDates),lastText:lastIso(l.textDates)}));
+  S.queue.forEach(q=>{const k=key(q.phone,q.name);let m=map.get(k);
+    if(!m){const td=(String(q.notes).match(/total dials:\s*(\d+)/i)||[])[1];
+      m={name:q.name,phone:q.phone,type:q.type,prov:q.prov,dials:td?+td:0,texts:String(q.texts||"").split(",").filter(x=>x.trim()).length,pres:null,callDates:"",textDates:"",lastDial:"",lastText:"",outcome:q.notes,status:/booked/i.test(q.step)?"Booked":statusOf(q.notes)};map.set(k,m)}
+    m.inQueue=true;m.step=q.step;m.cohort=q.cohort;m.block=q.block;m.next=q.next;
+    const qd=lastIso(q.dials),qt=lastIso(q.texts);if(qd&&qd>(m.lastDial||""))m.lastDial=qd;if(qt&&qt>(m.lastText||""))m.lastText=qt});
+  return [...map.values()]}
+const SORTS_L=[["name","Name A–Z"],["namez","Name Z–A"],["dials","Most dials"],["dialsa","Fewest dials"],["last","Latest dial"],["pres","Presentation date"],["block","Best call block"]];
+function sortLeads(rows,mode){const nm=(a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"});
+  const cmp={name:nm,namez:(a,b)=>-nm(a,b),dials:(a,b)=>b.dials-a.dials||nm(a,b),dialsa:(a,b)=>a.dials-b.dials||nm(a,b),
+    last:(a,b)=>(b.lastDial||"").localeCompare(a.lastDial||"")||nm(a,b),
+    pres:(a,b)=>(a.pres?0:1)-(b.pres?0:1)||String(a.pres||"").localeCompare(String(b.pres||""))||nm(a,b),
+    block:(a,b)=>(a.block?0:1)-(b.block?0:1)||a.block.localeCompare(b.block)||nm(a,b)}[mode]||nm;
+  return [...rows].sort(cmp)}
+function leadFilter(){const f=S.lf,q=f.q.trim().toLowerCase();
+  return S.merged.filter(x=>(f.view==="all"||x.inQueue)&&(f.type==="all"||x.type===f.type)&&(f.prov==="all"||x.prov===f.prov)&&(f.status==="all"||x.status===f.status)
+    &&(f.view==="all"||((f.step==="all"||x.step===f.step)&&(f.cohort==="all"||x.cohort===f.cohort)&&(f.block==="all"||x.block===f.block)))
+    &&(!q||(x.name+" "+x.phone+" "+x.outcome+" "+x.next).toLowerCase().includes(q)))}
+const leadItem=l=>{
+  const meta=[l.type,l.prov,l.inQueue?l.cohort:"",l.inQueue&&l.block?"best "+l.block:""].filter(Boolean).join(" · ");
+  const act=[`${l.dials} ${l.dials===1?"dial":"dials"}`,`${l.texts} ${l.texts===1?"text":"texts"}`,l.lastDial?"last dial "+fd(l.lastDial):"",l.lastText?"last text "+fd(l.lastText):"",l.pres?"presentation "+fd(l.pres):""].filter(Boolean).join(" · ");
+  const last=String(l.outcome||"").split(";").pop().trim();
+  return `<div class="lead"><div class="lh"><span class="p">${esc(l.name)}</span><span class="dim">${esc(l.phone)}</span>${statusChip(l.status||"Untouched")}</div><div class="lm">${esc(meta)}</div>${l.inQueue&&l.next?`<div class="lm">Next: <b>${esc(l.next)}</b></div>`:""}<div class="lm">${esc(act)}</div>${last?`<div class="lo">${esc(last)}</div>`:""}</div>`};
+function leadResults(){const f=S.lf, rows=sortLeads(leadFilter(),f.sort), shown=rows.slice(0,f.limit);
+  if(!rows.length)return empty("No leads match.","Clear the search or loosen a filter.");
+  return `<div class="n dim" style="font-size:12.5px;margin-bottom:6px">Showing ${shown.length} of ${rows.length}</div><div class="leads">${shown.map(leadItem).join("")}</div>`+
    (rows.length>shown.length?`<button class="more" id="lead-more">Show 40 more</button>`:"")}
 function renderLeads(){
-  const f=S.lf, types=uniq(S.leads.map(x=>x.type));
-  const byType=types.map(t=>{const L=S.leads.filter(l=>l.type===t);return tr([esc(t),L.length,L.reduce((a,l)=>a+l.dials,0),L.reduce((a,l)=>a+l.texts,0),L.filter(l=>l.status==="Booked").length,L.filter(l=>l.status==="Follow-up").length,pct(L.filter(l=>l.status==="Booked").length,L.length)])});
-  $("p-leads").innerHTML=srcNote("leads")+
-   sec("Pipeline",`${S.leads.length} leads`,S.leads.length?pipeline(S.leads):"")+
-   sec("By lead type","",table(["Type","Leads","Dials","Texts","Booked","Follow-up","Booked %"],byType))+
-   sec("All leads","from All Leads Master",`<div class="row">
-     <select id="lf-type" aria-label="Lead type"><option value="all">All types</option>${types.map(t=>`<option${f.type===t?" selected":""}>${esc(t)}</option>`).join("")}</select>
-     <select id="lf-status" aria-label="Status">${["all",...STATUS.map(s=>s[0])].map(o=>`<option value="${esc(o)}"${f.status===o?" selected":""}>${o==="all"?"Any status":esc(o)}</option>`).join("")}</select>
-     <input id="lf-q" type="search" placeholder="Search name or phone" value="${esc(f.q)}" aria-label="Search leads"></div><div id="lead-results">${leadResults()}</div>`)}
-
-/* ---------- Call list ---------- */
-const lastDate=s=>{const d=[...String(s||"").matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g)].map(m=>iso(m[3],+m[1],+m[2])).sort();return d.length?fd(d[d.length-1]):""};
-function callFilter(){const f=S.cf,q=f.q.trim().toLowerCase();return S.queue.filter(x=>(f.type==="all"||x.type===f.type)&&(f.prov==="all"||x.prov===f.prov)&&(f.cohort==="all"||x.cohort===f.cohort)&&(f.step==="all"||x.step===f.step)&&(!q||(x.name+" "+x.phone+" "+x.notes).toLowerCase().includes(q)))}
-function callResults(){const f=S.cf, rows=callFilter(), shown=rows.slice(0,f.limit);
-  if(!rows.length)return empty("No leads match.","Clear the search or loosen a filter.");
-  return `<div class="n dim" style="font-size:12.5px;margin-bottom:6px">Showing ${shown.length} of ${rows.length}</div>`+
-   table(["Lead","Type","Prov","Cohort","Best block","Next step","Last dial","Last text"],shown.map(l=>tr([esc(l.name)+`<br><span class="dim">${esc(l.phone)}</span>`,esc(l.type),esc(l.prov),esc(l.cohort),esc(l.block),esc(l.next),lastDate(l.dials),lastDate(l.texts)],{left:[1,2,3,4,5],wrap:[5]})),{left:[1,2,3,4,5]})+
-   (rows.length>shown.length?`<button class="more" id="call-more">Show 40 more</button>`:"")}
-function renderCallList(){
-  const f=S.cf,Q=S.queue,sel=(id,label,all,vals,cur)=>`<select id="${id}" aria-label="${label}"><option value="all">${all}</option>${vals.map(v=>`<option${cur===v?" selected":""}>${esc(v)}</option>`).join("")}</select>`;
-  const cohorts=uniq(Q.map(q=>q.cohort)), steps={};Q.forEach(q=>steps[q.step]=(steps[q.step]||0)+1);
-  $("p-calllist").innerHTML=srcNote("queue")+
-   sec("Call list",`${Q.length} leads`,Q.length?`<div class="kpis">${kpi("On the list",Q.length,"from the Call Lists tab")}${cohorts.map(c=>kpi(c.replace(/^[A-Z] - /,""),Q.filter(q=>q.cohort===c).length,"cohort "+esc(c.split(" ")[0])+" · "+pct(Q.filter(q=>q.cohort===c).length,Q.length))).join("")}</div>`:empty("The call list is empty.","The Call Lists tab has no rows."))+
-   (Q.length?sec("Next step","",table(["Next step","Leads"],Object.entries(steps).sort((a,b)=>b[1]-a[1]).map(([k,c])=>tr([esc(k),c]))))+
-    sec("Leads to work","",`<div class="row">${sel("cf-type","Lead type","All types",uniq(Q.map(q=>q.type)),f.type)}${sel("cf-prov","Province","All provinces",uniq(Q.map(q=>q.prov)),f.prov)}${sel("cf-cohort","Cohort","All cohorts",cohorts,f.cohort)}${sel("cf-step","Next step","Any next step",Object.keys(steps).sort(),f.step)}
-     <input id="cf-q" type="search" placeholder="Search name, phone or notes" value="${esc(f.q)}" aria-label="Search call list"></div><div id="call-results">${callResults()}</div>`):"")}
+  S.merged=mergeLeads();const M=S.merged,f=S.lf,inQ=M.filter(x=>x.inQueue);
+  for(const k of ["status"])if(f[k]!=="all"&&!M.some(x=>x[k]===f[k]))f[k]="all";
+  const sel=(id,label,all,vals,cur)=>`<select id="${id}" aria-label="${label}"><option value="all">${all}</option>${vals.map(v=>`<option${cur===v?" selected":""}>${esc(v)}</option>`).join("")}</select>`;
+  const cnt=st=>M.filter(x=>(x.status||"Untouched")===st).length, stepCounts={};inQ.forEach(x=>stepCounts[x.step||"No next step"]=(stepCounts[x.step||"No next step"]||0)+1);
+  const byType=uniq(M.map(x=>x.type)).map(t=>{const L=M.filter(l=>l.type===t),bk=L.filter(l=>l.status==="Booked").length;return tr([esc(t),L.length,L.filter(l=>l.inQueue).length,L.reduce((a,l)=>a+l.dials,0),L.reduce((a,l)=>a+l.texts,0),bk,L.filter(l=>l.status==="Follow-up").length,pct(bk,L.length)])});
+  const statusOpts=[["all","Any status"],...STATUS.map(s=>[s[0],s[0]])];
+  $("p-leads").innerHTML=srcNote("leads","queue")+
+   sec("Leads",`${M.length} leads · ${inQ.length} on the call list`,M.length?`<div class="kpis">${kpi("Leads",M.length,"All Leads Master and Call Lists")}${kpi("On call list",inQ.length,pct(inQ.length,M.length)+" of leads")}${kpi("Booked",cnt("Booked"),pct(cnt("Booked"),M.length))}${kpi("Follow-up",cnt("Follow-up"),"replied or talked")}${kpi("Untouched",cnt("Untouched"),"no outcome yet")}</div>`+pipeline(M):empty("No leads loaded.","The All Leads Master and Call Lists tabs had no rows."))+
+   (M.length?sec("By lead type","",table(["Type","Leads","On list","Dials","Texts","Booked","Follow-up","Booked %"],byType))+
+    (inQ.length?sec("Call list by next step","",table(["Next step","Leads"],Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).map(([k,c])=>tr([esc(k),c])))):"")+
+    sec("Lead list","",`<div class="row"><div class="seg" role="group" aria-label="List"><button data-lv="all" aria-pressed="${f.view==="all"}">All leads</button><button data-lv="call" aria-pressed="${f.view==="call"}">Call list</button></div></div>
+     <div class="row">${sel("lf-type","Lead type","All types",uniq(M.map(x=>x.type)),f.type)}${sel("lf-prov","Province","All provinces",uniq(M.map(x=>x.prov)),f.prov)}
+     <select id="lf-status" aria-label="Status">${statusOpts.map(([v,t])=>`<option value="${esc(v)}"${f.status===v?" selected":""}>${esc(t)}</option>`).join("")}</select>
+     ${f.view==="call"?sel("lf-step","Next step","Any next step",uniq(inQ.map(x=>x.step)),f.step)+sel("lf-cohort","Cohort","All cohorts",uniq(inQ.map(x=>x.cohort)),f.cohort)+sel("lf-block","Best call block","Any call block",uniq(inQ.map(x=>x.block)),f.block):""}
+     <select id="lf-sort" aria-label="Sort leads">${SORTS_L.map(([v,t])=>`<option value="${v}"${f.sort===v?" selected":""}>${t}</option>`).join("")}</select></div>
+     <input id="lf-q" type="search" placeholder="Search name, phone or notes" value="${esc(f.q)}" aria-label="Search leads"><div id="lead-results">${leadResults()}</div>`):"")}
 
 /* ---------- Weekly schedule ---------- */
 function renderSchedule(){
@@ -513,7 +534,7 @@ function renderProduction(){
 }
 
 /* ---------- shell ---------- */
-const R={dashboard:renderDashboard,plan:renderPlan,leads:renderLeads,calllist:renderCallList,schedule:renderSchedule,cadence:renderCadence,scripts:renderScripts,activity:renderActivity,stats:renderStats,production:renderProduction};
+const R={dashboard:renderDashboard,plan:renderPlan,leads:renderLeads,schedule:renderSchedule,cadence:renderCadence,scripts:renderScripts,activity:renderActivity,stats:renderStats,production:renderProduction};
 function renderTabs(){$("tabs").innerHTML=TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-selected="${S.tab===k}">${esc(l)}</button>`).join("")}
 function renderAll(){renderTabs();TABS.forEach(([k])=>{$("p-"+k).hidden=k!==S.tab});if(!S.loaded)return;TABS.forEach(([k])=>{try{R[k]()}catch(e){$("p-"+k).innerHTML=`<div class="banner warn">This tab couldn't be drawn (${esc(e&&e.message)}). Tap Refresh.</div>`}})}
 function setTab(k){S.tab=k;try{localStorage.setItem("ah:tab",k)}catch(e){}try{history.replaceState(null,"","#"+k)}catch(e){}renderTabs();TABS.forEach(([t])=>{$("p-"+t).hidden=t!==k});window.scrollTo(0,0)}
@@ -527,17 +548,16 @@ document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)r
   if(t.dataset.sv){S.sf.view=t.dataset.sv;return renderSchedule()}
   if(t.dataset.copy!=null){const x=S.scripts[+t.dataset.copy];return x&&copyText(x.text,t)}
   if(t.id==="lead-more"){S.lf.limit+=40;$("lead-results").innerHTML=leadResults()}
-  if(t.id==="call-more"){S.cf.limit+=40;$("call-results").innerHTML=callResults()}});
+  if(t.dataset.lv){S.lf.view=t.dataset.lv;S.lf.limit=40;return renderLeads()}});
 document.addEventListener("change",e=>{const id=e.target.id,v=e.target.value;
   if(id==="ef-sort"){S.ef.sort=v;S.ef.limit=25;return renderActivity()}
   if(id==="af-y"){S.ef.limit=25;S.af.y=v;if(v==="all"){S.af.m="all";S.af.d="all"}return renderActivity()}
   if(id==="af-m"){S.ef.limit=25;S.af.m=v;S.af.d="all";return renderActivity()}
   if(id==="af-d"){S.ef.limit=25;S.af.d=v;return renderActivity()}
-  if(id==="lf-type"||id==="lf-status"){S.lf[id==="lf-type"?"type":"status"]=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
-  const m={"cf-type":"type","cf-prov":"prov","cf-cohort":"cohort","cf-step":"step"}[id];if(m){S.cf[m]=v;S.cf.limit=40;$("call-results").innerHTML=callResults()}});
+  const lm={"lf-type":"type","lf-prov":"prov","lf-status":"status","lf-step":"step","lf-cohort":"cohort","lf-block":"block","lf-sort":"sort"}[id];if(lm){S.lf[lm]=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
+  });
 document.addEventListener("input",e=>{const id=e.target.id,v=e.target.value;
   if(id==="lf-q"){S.lf.q=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
-  if(id==="cf-q"){S.cf.q=v;S.cf.limit=40;$("call-results").innerHTML=callResults()}
   if(id==="sc-q"){S.sc.q=v;$("sc-results").innerHTML=scriptItems()}});
 window.addEventListener("hashchange",()=>{const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h)&&h!==S.tab)setTab(h)});
 
