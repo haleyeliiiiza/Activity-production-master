@@ -39,7 +39,7 @@ The full workflow export contains the sheet ID and credential IDs, so it is not 
 
 - Every step that adds a row to the Tracker uses the Sheets append API (`useAppend`). Without it, two entries logged at the same moment could land on the same row and one would be lost. This matters for PowerDialer bursts.
 - HubSpot steps use HTTP Request nodes with the `HubSpot account` credential, so that credential must be allowed in HTTP Request nodes. n8n's built-in HubSpot node cannot create notes or phone-only contacts.
-- The phone lookup matches the phone number exactly as sent, so a lead stored in a different format (for example `13069808654` versus `+13069808654`) is not found and a duplicate HubSpot contact is created.
+- The phone lookup matches HubSpot's normalized phone number (the last 10 digits), so `+13069808654`, `13069808654` and `(306) 980-8654` all find the same contact. It falls back to the exact number and picks the oldest matching contact.
 
 ## To do
 
