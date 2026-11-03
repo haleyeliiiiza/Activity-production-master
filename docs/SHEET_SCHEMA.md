@@ -11,7 +11,7 @@ Header row, A to J:
 | Col | Header | Notes |
 |---|---|---|
 | A | Date | YYYY-MM-DD |
-| B | Type | `Call`, `Recruiting Call`, `New Lead`, `Appointment Set`, `Presentation Held`, `No-Show`, `Application Submitted`, `Policy Issued`, `Follow-Up` (only `Call` and `Appointment Set` seen so far) |
+| B | Type | `Call`, `Recruiting Call`, `New Lead`, `Appointment Set`, `Presentation Held`, `No-Show`, `Application Submitted`, `Policy Issued`, `Follow-Up`, `Text` (sent, from Kixie), `Text Reply` (received, from Kixie) |
 | C | Name | Lead name |
 | D | Phone | |
 | E | Email | |
@@ -56,7 +56,7 @@ Weekly Schedule, Cadence, Scripts, Sale by Fri Oct 30, Stage Alignment Plan: pla
 
 - Dials = `Call` rows. Conversations = `Call` rows whose Notes start with `Connected`, excluding no answer, voicemail and call control.
 - Recruiting calls are never mixed into sales dials.
-- On the dashboard, dials and conversations for the current month come from the Tracker (Kixie) on any day that has `Call` rows, and from the `Stats` tab on days that do not. Texts, bookings, shown and no-shows still come from the `Stats` tab.
+- On the dashboard, dials and conversations for the current month come from the Tracker (Kixie) on any day that has `Call` rows, and from the `Stats` tab on days that do not. Texts sent and replies work the same way from `Text` and `Text Reply` rows. Bookings, shown and no-shows still come from the `Stats` tab.
 - Calendly bookings are `Appointment Set`; recruiting interviews are excluded from sales bookings.
 - ALP is summed from `Application Submitted` rows.
 - Plan maths: ALP goal / average ALP / close rate = presentations needed; / show rate = bookings needed; x dials per conversation = dials needed.
