@@ -35,6 +35,7 @@ Every morning at 7 AM Regina time n8n adds new rows to **Leads**. A lead is new 
 
 One row per lead. Columns: Lead Type, Name, Phone, Province, Email, Sponsor, Beneficiary, Lead Inbox, Date Added, Outcome, Next Step, Cohort, Best Call Block, Presentation Date, Notes, Dials (history), Texts (history), Call Dates (history), Text Dates (history).
 
+- **Stage** (column T) is the lead's place in the cycle: 0 Not contacted, 1 Text sent, 2 Called, 3 Presented / Booked, 4 Closed. It was set on 2026-11-02 (leads with 4 or more dials and no conversation restarted at 0). New imported leads start at 0. The hub and the text drafting advance a lead from Tracker activity after the baseline date; the sheet column itself is the starting stage.
 - You work Outcome, Next Step, Cohort, Best Call Block, Presentation Date and Notes. A lead is on the call list when it has a Next Step.
 - The four history columns hold the dial and text counts and dates typed before Kixie logging began. Stop typing them. The hub adds Kixie dials and texts from the Tracker (dated after 2026-10-31) on top, matched by the last 10 digits of the phone.
 - This tab replaces **All Leads Master** and **Call Lists**, which can be archived. The hub still falls back to them if Leads is empty.
@@ -52,7 +53,12 @@ Rules for automatic texting, read by n8n each time it runs. Change a value here 
 | Reminder hours before | 3 | A reminder is drafted when the appointment starts within this many hours. |
 | Max texts per lead per day | 1 | Reminders are not counted. |
 | First text: days after added | 14 | New leads get a first text if never texted. |
-| Follow-up: days after no-answer call | 3 | Follow-up window after an unanswered Kixie call. |
+| Follow-up: days after no-answer call | 7 | Follow-up window after an unanswered call (PowerDialer 'Agent Ended' drops count as dials). |
+| First text days | Mon | Days Stage 0 leads get their first text, so first texts and calls never mix on one day. |
+| Stage baseline date | 2026-11-02 | Date the Stage column was set; texts and calls on or after it advance a lead. |
+| Max first texts per run / Max drafts per run | 25 / 30 | Keeps each approval batch manageable. Call control first, then first texts, then follow-ups. |
+| First text test | A/B | A = booking-first wording, B = right-now invite. A/B splits by the last two digits of the phone; the draft's Ref column records the version. |
+| Call control: days | 7 | Window for the call control text after a call-control call. |
 | Calendly link: McGruff/ChildSafe, Will Kit, Union | blank | Used in the first text and follow-up. Drafts that need a link are skipped while it is blank. |
 | Approval email to, Kixie sender email | your address | Where approval emails go, and the Kixie user texts are sent as. |
 | Call block: ON Will Kit | 1-3 PM | Best call block (Regina time) by province. |

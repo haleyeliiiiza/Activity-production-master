@@ -54,3 +54,8 @@ The full workflow export contains the sheet ID and credential IDs, so it is not 
 ## To do
 
 - Add a dedupe Key and an Import log line to each flow.
+
+
+## Stage-based texting
+
+Text drafting reads the **Stage** column on the Leads tab. Stage 0 leads get a first text on text days only (Text Settings: First text days), version A or B for the first-text test. Stage 2 leads get a follow-up within 7 days of an unanswered dial, using call and text history plus the Tracker. Stages 3 and 4 get no cadence texts (booked leads still get reminders). Approved drafts are sent through Kixie's Send SMS API once Dry run is No; the Kixie API key is held as a Query Auth credential in n8n.
