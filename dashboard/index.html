@@ -181,7 +181,7 @@ const weekOf=d=>PLAN.weeks.find(w=>d>=w.start&&d<=w.end);
 const planDay=d=>{const w=weekOf(d);if(!w)return 0;const n=WORKDAYS.filter(x=>x>=w.start&&x<=w.end).length;return PLAN.avg*w.sales/n};
 
 /* ---------- state ---------- */
-const S={af:{y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"},stv:"month",mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,sched:[],cadence:[],scripts:[],plan:[],
+const S={ef:{sort:"newest",limit:25},af:{y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"},stv:"month",mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,sched:[],cadence:[],scripts:[],plan:[],
   lf:{type:"all",status:"all",q:"",limit:40},cf:{type:"all",prov:"all",cohort:"all",step:"all",q:"",limit:40},sf:{view:"upcoming"},sc:{q:""}};
 try{const t=localStorage.getItem("ah:tab");if(t&&TABS.some(x=>x[0]===t))S.tab=t}catch(e){}
 {const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h))S.tab=h}
@@ -199,7 +199,7 @@ async function getRange(range){const r=await S.mcp.callTool(SRV,"get_values",{sp
 const connected=n=>/^connected/i.test(n)&&!/no answer|voicemail|call control/i.test(n);
 function parseTracker(v){return v.filter(r=>r[0]||r[1]).map(r=>{const notes=String(r[7]||"");
   return {date:parseDate(r[0]),type:String(r[1]||"").trim(),name:String(r[2]||"").trim(),premium:num(r[5]),source:String(r[6]||"").trim(),
-    notes,disp:notes.split("|")[0].trim(),conn:connected(notes),interview:/interview/i.test(notes),list:String(r[9]||"").trim()}}).filter(r=>r.date)}
+    notes,disp:notes.split("|")[0].trim(),conn:connected(notes),dir:(t=>t==="Text Reply"?"in":t==="Text"?"out":t==="Call"?(/inbound/i.test(notes)?"in":"out"):"")(String(r[1]||"").trim()),interview:/interview/i.test(notes),list:String(r[9]||"").trim()}}).filter(r=>r.date)}
 function statusOf(o){o=String(o||"").trim();if(!o)return "Untouched";
   if(/booked/i.test(o))return "Booked"; if(/unreachable|bad number/i.test(o))return "Unreachable";
   if(/not interested|not for me/i.test(o))return "Not interested";
@@ -398,6 +398,11 @@ async function copyText(t,btn){try{await navigator.clipboard.writeText(t);btn.te
 /* ---------- Activity ---------- */
 const MONTHS_FULL=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const pad2=n=>String(n).padStart(2,"0");
+const SORTS=[["newest","Newest first"],["oldest","Oldest first"],["name","Contact name A–Z"],["namez","Contact name Z–A"],["in","Incoming first"],["out","Outgoing first"]];
+function sortEntries(R,mode){const rows=R.map((r,i)=>({r,i}));
+  const nd=(a,b)=>a.r.date<b.r.date?1:a.r.date>b.r.date?-1:b.i-a.i, rank=(x,first)=>x.r.dir===first?0:x.r.dir?1:2, nm=(a,b)=>a.r.name.localeCompare(b.r.name,undefined,{sensitivity:"base"});
+  const cmp={newest:nd,oldest:(a,b)=>-nd(a,b),name:(a,b)=>nm(a,b)||nd(a,b),namez:(a,b)=>-nm(a,b)||nd(a,b),in:(a,b)=>rank(a,"in")-rank(b,"in")||nd(a,b),out:(a,b)=>rank(a,"out")-rank(b,"out")||nd(a,b)}[mode]||nd;
+  return rows.sort(cmp).map(x=>x.r)}
 function actLabel(f){if(f.y==="all")return "All time";if(f.m==="all")return f.y;const mn=MONTHS_FULL[+f.m-1];return f.d==="all"?mn+" "+f.y:mn+" "+(+f.d)+", "+f.y}
 function renderActivity(){
   const T=S.tracker;
@@ -419,12 +424,13 @@ function renderActivity(){
     else if(r.type==="No-Show")d.ns++;else if(r.type==="Application Submitted"){d.apps++;d.alp+=r.premium}});
   const all=Object.values(days).sort((a,b)=>a.date<b.date?1:-1), drows=all.slice(0,31);
   const lists={};calls.filter(r=>r.list).forEach(r=>{const l=lists[r.list]=lists[r.list]||{n:r.list,d:0,c:0};l.d++;if(r.conn)l.c++});
-  const recent=[...R].reverse().slice(0,25);
+  const sorted=sortEntries(R,S.ef.sort), shown=sorted.slice(0,S.ef.limit), multi=f.y==="all"||f.m==="all";
   $("p-activity").innerHTML=srcNote("tracker")+
    sec("Activity",esc(label)+` · ${R.length} ${R.length===1?"entry":"entries"}`,controls+`<div class="kpis">${kpi("Dials",calls.length,"Kixie calls")}${kpi("Conversations",conv,pct(conv,calls.length)+" of dials")}${kpi("Texts",tx,rp+(rp===1?" reply":" replies"))}${kpi("Bookings",book,"recruiting interviews left out")}${kpi("Presentations",pres,ns+" no-shows")}${kpi("Applications",apps.length,money(alp)+" ALP")}</div>`)+
    (f.d==="all"?sec("By day",all.length>31?"latest 31 days with activity":`${all.length} ${all.length===1?"day":"days"} with activity`,table(["Day","Dials","Convos","Texts","Replies","Bookings","Pres.","No-shows","Apps","ALP"],drows.map(d=>tr([f.y==="all"||f.m==="all"?fd(d.date)+" "+d.date.slice(0,4):fd(d.date),d.dials,d.conv,d.txt,d.rep,d.book,d.pres,d.ns,d.apps,money(d.alp)])))):"")+
    (Object.keys(lists).length?sec("By power list","",table(["List","Dials","Convos","Reach"],Object.values(lists).sort((a,b)=>b.d-a.d).map(l=>tr([esc(l.n),l.d,l.c,pct(l.c,l.d)])))):"")+
-   sec("Entries",R.length>25?"latest 25":"",`<div class="list">${recent.map(r=>`<div class="item"><span class="d">${fd(r.date)}</span><span><span class="p">${esc(r.type)}</span> <span class="dim">${esc(r.name)}</span><br><span class="m">${esc(r.type==="Text"||r.type==="Text Reply"?r.notes:r.disp)}</span></span><span class="dim">${esc(r.source)}</span></div>`).join("")}</div>`)
+   sec("Entries",`${R.length} in ${esc(label)}`,`<div class="row"><select id="ef-sort" aria-label="Sort entries">${SORTS.map(([v,t])=>`<option value="${v}"${S.ef.sort===v?" selected":""}>${t}</option>`).join("")}</select></div>
+     <div class="list">${shown.map(r=>`<div class="item"><span class="d">${fd(r.date)}${multi?"<br>"+r.date.slice(0,4):""}</span><span><span class="p">${esc(r.type)}</span> <span class="dim">${esc(r.name)}</span><br><span class="m">${esc(r.type==="Text"||r.type==="Text Reply"?r.notes:r.disp)}</span></span><span class="dim">${r.dir?`<span class="chip${r.dir==="in"?" booked":""}">${r.dir==="in"?"Incoming":"Outgoing"}</span> `:""}${esc(r.source)}</span></div>`).join("")}</div>${sorted.length>shown.length?`<button class="more" id="ef-more">Show 25 more</button>`:""}`)
 }
 
 /* ---------- Stats ---------- */
@@ -488,15 +494,17 @@ document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)r
   if(t.dataset.tab)return setTab(t.dataset.tab);
   if(t.id==="refresh")return load();
   if(t.dataset.stv){S.stv=t.dataset.stv;return renderStats()}
-  if(t.id==="af-reset"){S.af={y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"};return renderActivity()}
+  if(t.id==="ef-more"){S.ef.limit+=25;return renderActivity()}
+  if(t.id==="af-reset"){S.ef.limit=25;S.af={y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"};return renderActivity()}
   if(t.dataset.sv){S.sf.view=t.dataset.sv;return renderSchedule()}
   if(t.dataset.copy!=null){const x=S.scripts[+t.dataset.copy];return x&&copyText(x.text,t)}
   if(t.id==="lead-more"){S.lf.limit+=40;$("lead-results").innerHTML=leadResults()}
   if(t.id==="call-more"){S.cf.limit+=40;$("call-results").innerHTML=callResults()}});
 document.addEventListener("change",e=>{const id=e.target.id,v=e.target.value;
-  if(id==="af-y"){S.af.y=v;if(v==="all"){S.af.m="all";S.af.d="all"}return renderActivity()}
-  if(id==="af-m"){S.af.m=v;S.af.d="all";return renderActivity()}
-  if(id==="af-d"){S.af.d=v;return renderActivity()}
+  if(id==="ef-sort"){S.ef.sort=v;S.ef.limit=25;return renderActivity()}
+  if(id==="af-y"){S.ef.limit=25;S.af.y=v;if(v==="all"){S.af.m="all";S.af.d="all"}return renderActivity()}
+  if(id==="af-m"){S.ef.limit=25;S.af.m=v;S.af.d="all";return renderActivity()}
+  if(id==="af-d"){S.ef.limit=25;S.af.d=v;return renderActivity()}
   if(id==="lf-type"||id==="lf-status"){S.lf[id==="lf-type"?"type":"status"]=v;S.lf.limit=40;$("lead-results").innerHTML=leadResults()}
   const m={"cf-type":"type","cf-prov":"prov","cf-cohort":"cohort","cf-step":"step"}[id];if(m){S.cf[m]=v;S.cf.limit=40;$("call-results").innerHTML=callResults()}});
 document.addEventListener("input",e=>{const id=e.target.id,v=e.target.value;
