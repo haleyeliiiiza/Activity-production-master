@@ -13,6 +13,7 @@
   --f-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
   color-scheme:light;
 }
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.45;margin:0;
   padding-block:0 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -346,7 +347,7 @@ function renderPlan(){
   const first=S.plan.findIndex(r=>/^week plan/i.test(r.label)); let weeksDone=false;
   const weeks=S.plan.filter(r=>/^week plan/i.test(r.label));
   const weekTable=()=>sec("Week by week","plan from the sheet, so far from the Tracker",table(["Week","Plan","Pres. so far","Sales so far","ALP so far"],weeks.map((r,i)=>{const w=PLAN.weeks[i],a=w?weekNums(w,N):{pres:0,sales:0,alp:0};
-    return tr([esc(r.label.replace(/^week plan\s*-\s*/i,"")),esc(r.detail),a.pres,a.sales,money(a.alp)],{left:[1]})}),{left:[1]}));
+    return tr([esc(r.label.replace(/^week plan\s*-\s*/i,"")),esc(r.detail),a.pres,a.sales,money(a.alp)],{left:[1],wrap:[1]})}),{left:[1]}));
   const blocks=S.plan.map((r,i)=>{if(/^week plan/i.test(r.label)){if(weeksDone)return "";weeksDone=true;return weekTable()}
     return `<div class="nt"><h3>${esc(r.label)}</h3>${r.detail.split(/\s*\n\s*/).filter(Boolean).map(x=>`<p>${esc(x)}</p>`).join("")}</div>`}).join("");
   $("p-plan").innerHTML=srcNote("plan","tracker")+
