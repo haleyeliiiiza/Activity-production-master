@@ -248,7 +248,7 @@ function parseLeadsTab(v){if(!v||v.length<2)return [];
   return v.slice(1).filter(r=>g(r,"Name")||g(r,"Phone")).map(r=>{const outcome=g(r,"Outcome"),next=g(r,"Next Step"),notes=g(r,"Notes"),step=next.split(/ - | – /)[0].trim();
     return {inbox:g(r,"Lead Inbox"),type:g(r,"Lead Type"),name:g(r,"Name"),phone:g(r,"Phone"),prov:g(r,"Province"),email:g(r,"Email"),sponsor:g(r,"Sponsor"),beneficiary:g(r,"Beneficiary"),added:g(r,"Date Added"),
       outcome,notes,next,step,cohort:g(r,"Cohort"),block:g(r,"Best Call Block"),pres:parseDate(g(r,"Presentation Date"),2026),dials:num(g(r,"Dials (history)")),texts:num(g(r,"Texts (history)")),
-      stage0:g(r,"Stage"),callDates:g(r,"Call Dates (history)"),textDates:g(r,"Text Dates (history)"),status:/no.?show|cancel|so show/i.test(g(r,"Presentation Date"))?"Missed":/booked/i.test(step)?"Booked":statusOf(outcome||notes),inQueue:Boolean(next)}})}
+      stage0:g(r,"Stage"),presTxt:g(r,"Presentation Date"),callDates:g(r,"Call Dates (history)"),textDates:g(r,"Text Dates (history)"),status:/no.?show|cancel|so show/i.test(g(r,"Presentation Date"))?"Missed":/booked/i.test(step)?"Booked":statusOf(outcome||notes),inQueue:Boolean(next)}})}
 const queueRows=()=>S.leadsTab?S.leads.filter(l=>l.inQueue):S.queue;
 const SK=["dials","conn","texts","replies","made","shown","noshow","pres","sales","alp"];
 function parseStats(v){if(!v.length)return null;const h=(v[0]||[]).map(x=>String(x||""));
@@ -367,7 +367,7 @@ function callQueue(steps,callBack){
   const M=S.leadsTab?mergeLeads().filter(x=>x.stage!==""&&x.stage!==undefined):[];
   if(!M.length)return sec("Call queue",`${queueRows().length} on the call list${callBack.length?` · ${callBack.length} to call back first`:""}`,
      steps.length?table(["Next step","Leads"],steps.map(([s,c])=>tr([esc(s),c]))):empty("The call queue is empty.","Call Lists has no rows."));
-  const NEXT=["First text on a text day (Mon, Wed)","Call Attempt 1 on a call day","Follow-up text, then Call Attempts 2 and 3","Reminder, then present or reschedule"];
+  const NEXT=["First text on a text day (Mon, Wed)","Call Attempt 1 on a call day","Follow-up text, then Call Attempts 2 and 3","Reminder, then present or reschedule","One reschedule text and one call, then wait"];
   const toCall=M.filter(x=>x.stage===1||x.stage===2), first=M.filter(x=>x.stage===0), hot=toCall.filter(x=>x.status==="Follow-up");
   const blocks={};toCall.forEach(x=>{const b=x.block||"No call block";blocks[b]=(blocks[b]||0)+1});
   return sec("Call queue",`${toCall.length} to call · ${first.length} waiting for a first text${hot.length?` · ${hot.length} replied`:""}`,
@@ -391,7 +391,7 @@ function renderPlan(){
 const uniq=a=>[...new Set(a.filter(Boolean))].sort();
 const dg10=x=>String(x||"").replace(/\D/g,"").slice(-10);
 const lastIso=s=>{const d=[...String(s||"").matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g)].map(m=>iso(m[3],+m[1],+m[2])).sort();return d.length?d[d.length-1]:""};
-const STAGE_BASE="2026-11-02",STAGES=["Not contacted","Text sent","Called","Presented / Booked","Closed"];
+const STAGE_BASE="2026-11-02",STAGES=["Not contacted","Text sent","Called","Booked","Missed","Closed"];
 const stageName=s=>s===""||s==null?"":s+" "+STAGES[s];
 function leadsFromTab(){const idx=new Map(),nos=new Set();
   S.tracker.forEach(r=>{if(r.type==="No-Show"&&r.date>=STAGE_BASE){const k=dg10(r.phone);if(k.length>=7)nos.add(k)}});
@@ -399,10 +399,11 @@ function leadsFromTab(){const idx=new Map(),nos=new Set();
     let e=idx.get(k);if(!e){e={cc:false,dials:0,texts:0,lastDial:"",lastText:""};idx.set(k,e)}
     if(r.type==="Call"){e.dials++;if(r.date>e.lastDial)e.lastDial=r.date;if(/call control/i.test(r.notes||""))e.cc=true}else{e.texts++;if(r.date>e.lastText)e.lastText=r.date}});
   return S.leads.map(l=>{const e=idx.get(dg10(l.phone))||{cc:false,dials:0,texts:0,lastDial:"",lastText:""},hd=lastIso(l.callDates),ht=lastIso(l.textDates);
-    const b=parseInt(l.stage0,10);let st=Number.isNaN(b)?"":b;if(st!==""){if(st<2&&e.lastDial>=STAGE_BASE)st=2;else if(st===0&&e.lastText>=STAGE_BASE)st=1;if(l.status==="Booked"&&st<3)st=3;if(e.cc&&st<3)st=4}
-    const ns=nos.has(dg10(l.phone));if(ns&&st===3)st=2;
-    const nx=st===""?null:(st===1||st===2?["","Call Attempt 1 on a call day","Follow-up text, then Call Attempts 2 and 3"][st]:"");
-    return {...l,status:ns&&l.status==="Booked"?"Missed":l.status,stage:st,...(nx===null?{}:{inQueue:st===1||st===2,step:nx,next:nx,cohort:""}),dials:l.dials+e.dials,texts:l.texts+e.texts,lastDial:e.lastDial>hd?e.lastDial:hd,lastText:e.lastText>ht?e.lastText:ht}})}
+    const b=parseInt(l.stage0,10);let st=Number.isNaN(b)?"":b;if(st!==""){if(st<2&&e.lastDial>=STAGE_BASE)st=2;else if(st===0&&e.lastText>=STAGE_BASE)st=1;if(l.status==="Booked"&&st<3)st=3;if(e.cc&&st<3)st=5}
+    const ns=nos.has(dg10(l.phone));if(st!==""&&st<=3&&(ns||l.status==="Missed"))st=4;
+    const reason=st===5?(/no.?sale/i.test(l.presTxt||"")?"Presented, no sale":(e.cc||/call control/i.test(l.outcome))?"Call control":/unreachable|bad number/i.test(l.outcome)?"Unreachable":/not interested|not for me|mail it|lawyer|located will/i.test(l.outcome)?"Not interested":""):"";
+    const nx=st===""?null:({1:"Call Attempt 1 on a call day",2:"Follow-up text, then Call Attempts 2 and 3",4:"Reschedule: one text and one call, then wait"}[st]||"");
+    return {...l,status:ns&&l.status==="Booked"?"Missed":l.status,stage:st,reason,...(nx===null?{}:{inQueue:st===1||st===2||st===4,step:nx,next:nx,cohort:""}),dials:l.dials+e.dials,texts:l.texts+e.texts,lastDial:e.lastDial>hd?e.lastDial:hd,lastText:e.lastText>ht?e.lastText:ht}})}
 function mergeLeads(){if(S.leadsTab)return leadsFromTab();const map=new Map(),key=(ph,nm)=>dg10(ph).length>=7?dg10(ph):"n:"+String(nm||"").trim().toLowerCase();
   S.leads.forEach(l=>map.set(key(l.phone,l.name),{...l,inQueue:false,step:"",cohort:"",block:"",next:"",lastDial:lastIso(l.callDates),lastText:lastIso(l.textDates)}));
   S.queue.forEach(q=>{const k=key(q.phone,q.name);let m=map.get(k);
@@ -423,7 +424,7 @@ function leadFilter(){const f=S.lf,q=f.q.trim().toLowerCase();
     &&(f.view==="all"||((f.step==="all"||x.step===f.step)&&(f.cohort==="all"||x.cohort===f.cohort)&&(f.block==="all"||x.block===f.block)))
     &&(!q||(x.name+" "+x.phone+" "+x.outcome+" "+x.next).toLowerCase().includes(q)))}
 const leadItem=l=>{
-  const meta=[l.stage!==undefined&&l.stage!==""?"Stage "+stageName(l.stage):"",l.inbox,l.type,l.prov,l.inQueue?l.cohort:"",l.inQueue&&l.block?"best "+l.block:""].filter(Boolean).join(" · ");
+  const meta=[l.stage!==undefined&&l.stage!==""?"Stage "+stageName(l.stage)+(l.reason?" · "+l.reason:""):"",l.inbox,l.type,l.prov,l.inQueue?l.cohort:"",l.inQueue&&l.block?"best "+l.block:""].filter(Boolean).join(" · ");
   const act=[`${l.dials} ${l.dials===1?"dial":"dials"}`,`${l.texts} ${l.texts===1?"text":"texts"}`,l.lastDial?"last dial "+fd(l.lastDial):"",l.lastText?"last text "+fd(l.lastText):"",l.pres?"presentation "+fd(l.pres):""].filter(Boolean).join(" · ");
   const last=String(l.outcome||"").split(";").pop().trim();
   return `<div class="lead"><div class="lh"><span class="p">${esc(l.name)}</span><span class="dim">${esc(l.phone)}</span>${statusChip(l.status||"Untouched")}</div><div class="lm">${esc(meta)}</div>${l.inQueue&&l.next?`<div class="lm">Next: <b>${esc(l.next)}</b></div>`:""}${(l.email||l.sponsor||l.beneficiary)?`<div class="lm">${esc([l.email,l.sponsor?"Sponsor: "+l.sponsor:"",l.beneficiary?"Beneficiary: "+l.beneficiary:""].filter(Boolean).join(" · "))}</div>`:""}<div class="lm">${esc(act)}</div>${last?`<div class="lo">${esc(last)}</div>`:""}</div>`};
