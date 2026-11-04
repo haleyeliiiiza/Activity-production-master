@@ -306,7 +306,11 @@ async function load(){
       if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="playbook"){const P=playbookSections(v);S.sched=parseSched(P["weekly schedule"]||[]);S.cadence=parseCadence(P["cadence"]||[]);S.plan=parsePlan(P["monthly plan"]||[])}else if(k==="powerLists"){S.leadLists=new Set(v.filter(r=>String(r[0]||"").trim()&&/^leads$/i.test(String(r[2]||"").trim())).map(r=>String(r[0]).trim()))}else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="leadsTab")S.leadsRaw=parseLeadsTab(v);else S.stats=parseStats(v)}
     else{S.err[k]=r.reason;if(k==="playbook"){S.err.sched=S.err.cadence=S.err.plan=r.reason}bad++;first=first||r.reason}});
   // Use the Leads tab when it has leads; otherwise fall back to All Leads Master and Call Lists.
-  S.leadPhones=new Set((S.leadsRaw||[]).map(l=>dg10(l.phone)).filter(x=>x.length>=7));S.leadsTab=Boolean(S.leadsRaw&&S.leadsRaw.length);if(S.leadsTab){S.leads=S.leadsRaw;S.queue=[]}
+  S.leadPhones=new Set((S.leadsRaw||[]).map(l=>dg10(l.phone)).filter(x=>x.length>=7));
+  // Kixie logs texts to new numbers as "New Lead"; show the lead's real name from the Leads tab instead.
+  {const nm=new Map(),tc=x=>/[a-z]/.test(x)?x:x.toLowerCase().replace(/\b([a-z])/g,c=>c.toUpperCase()),flip=n=>{n=String(n||"").trim();const i=n.indexOf(",");return tc(i>0?(n.slice(i+1).trim()+" "+n.slice(0,i).trim()).trim():n)};
+   (S.leadsRaw||[]).forEach(l=>{const k=dg10(l.phone);if(k.length>=10&&l.name)nm.set(k,flip(l.name))});
+   (S.tracker||[]).forEach(r=>{if(!r.name||/^(new lead|name unavailable|kixie text|unknown)$/i.test(r.name.trim())){const n=nm.get(dg10(r.phone));if(n)r.name=n}})}S.leadsTab=Boolean(S.leadsRaw&&S.leadsRaw.length);if(S.leadsTab){S.leads=S.leadsRaw;S.queue=[]}
   S.loaded=true;S.at=new Date();
   showBanner(bad===keys.length?errMsg(first):bad?"Some data didn't load ("+keys.filter(k=>S.err[k]).join(", ")+"). "+errMsg(first):"");
   $("sync").innerHTML=`Updated ${S.at.toLocaleTimeString("en-CA",{hour:"numeric",minute:"2-digit"})}<button id="refresh">Refresh</button>`;
