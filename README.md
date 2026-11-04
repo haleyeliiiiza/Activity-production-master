@@ -28,7 +28,7 @@ Manual entry ────────────────┘                
 | Cadence | Text and call steps with what to do on no answer, interest or refusal | Cadence |
 | Scripts | Text, call and objection scripts with copy buttons and draft flags | Scripts |
 | Activity | Dials, conversations, bookings, presentations by day and power list, latest entries | Tracker |
-| Stats | Running totals, conversion rates, daily dials and conversations | Stats |
+| Stats | Running totals, conversion rates, daily dials and conversations | Tracker (computed) |
 | Production | ALP, policies and presentations against the $20k plan, weekly plan table | Tracker |
 
 More tabs (Recruiting, Policies & Commissions) are planned; see [docs/ROADMAP.md](docs/ROADMAP.md). To add one, append it to `TABS` in the page, add a `<section id="p-NAME">` and a render function.

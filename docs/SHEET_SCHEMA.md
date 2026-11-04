@@ -91,7 +91,9 @@ Lead Inbox, Lead Type, Lead Name, Phone Number, Province, Call Dates, Total Dial
 
 Lead Inbox, Lead Type, Province, Cohort, Lead Name, Phone Number, Best call block, Text Dates, Dial Dates, Next step, Notes.
 
-## Tab: Stats (manual daily inputs from Kixie)
+## Tab: Stats (archived, hidden)
+
+The Stats tab was retired and hidden as `Stats (archived)`. The hub's Stats tab now computes everything from the Tracker: dials, conversations, texts, replies, bookings, shown, no-shows, presentations (Presentation Held), sales and ALP (Application Submitted). The old layout is kept below for reference.
 
 One row per day: Date, Dials, Connections, Texts Sent, Text Replies, Bookings Made, Bookings Shown, Bookings No-Show. The first data row is a "MTD to 10/28/2026" opening balance. Cumulative stats add the daily rows to it.
 
@@ -118,4 +120,4 @@ Weekly Schedule, Cadence, Scripts, Sale by Fri Oct 30, Stage Alignment Plan: pla
 - **Goals**: Month, ALP goal, average ALP, close rate, show rate, dials per conversation, workdays. Replaces the numbers hard-coded in the dashboard and the free-text plan tab.
 - **Import log**: Timestamp, Source, Rows added, Rows skipped, Notes. Written by n8n.
 - A dedupe **Key** column on Tracker so re-imports are safe.
-- Daily stats are typed in by hand on `Stats`; they could be computed from Tracker instead.
+- Daily stats are computed from the Tracker (the old Stats tab is archived).

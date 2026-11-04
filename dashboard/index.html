@@ -195,7 +195,7 @@ const weekOf=d=>PLAN.weeks.find(w=>d>=w.start&&d<=w.end);
 const planDay=d=>{const w=weekOf(d);if(!w)return 0;const n=WORKDAYS.filter(x=>x>=w.start&&x<=w.end).length;return PLAN.avg*w.sales/n};
 
 /* ---------- state ---------- */
-const S={ef:{sort:"newest",limit:25},af:{y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"},stv:"month",mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:null,sched:[],cadence:[],scripts:[],plan:[],
+const S={ef:{sort:"newest",limit:25},af:{y:TODAY.slice(0,4),m:TODAY.slice(5,7),d:"all"},stv:"month",mcp:null,tab:"dashboard",loaded:false,err:{},at:null,tracker:[],leads:[],queue:[],stats:{base:null,baseLabel:"",days:[]},sched:[],cadence:[],scripts:[],plan:[],
   lf:{stage:"all",view:"all",inbox:"all",type:"all",prov:"all",status:"all",step:"all",cohort:"all",block:"all",sort:"name",q:"",limit:40},sf:{view:"upcoming"},sc:{q:""}};
 try{const t=localStorage.getItem("ah:tab");if(t&&TABS.some(x=>x[0]===t))S.tab=t}catch(e){}
 {const h=(location.hash||"").slice(1);if(TABS.some(x=>x[0]===h))S.tab=h}
@@ -262,9 +262,10 @@ function parseStats(v){if(!v.length)return null;const h=(v[0]||[]).map(x=>String
 const MONTH=TODAY.slice(0,7), MONTH_NAME=["January","February","March","April","May","June","July","August","September","October","November","December"][+MONTH.slice(5)-1];
 // Stats rows for the current month. The "MTD to <date>" opening row counts only when its date is in the current month.
 // Dials and conversations come from the Tracker (Kixie) for any day it has call rows; every other number comes from the Stats tab.
-function kixieDays(){const m={},blank=()=>({dials:0,conn:0,texts:0,replies:0,made:0,shown:0,noshow:0,call:false,txt:false,bk:false,oc:false});
+function kixieDays(){const m={},blank=()=>({dials:0,conn:0,texts:0,replies:0,made:0,shown:0,noshow:0,sales:0,alp:0,call:false,txt:false,bk:false,oc:false,ap:false});
   S.tracker.filter(r=>r.date.startsWith(MONTH)).forEach(r=>{
     const book=r.type==="Appointment Set"&&!r.interview;
+    if(r.type==="Application Submitted"){const d=m[r.date]=m[r.date]||blank();d.ap=true;d.sales++;d.alp+=r.premium;return}
     if(r.type!=="Call"&&r.type!=="Text"&&r.type!=="Text Reply"&&!book)return;
     const d=m[r.date]=m[r.date]||blank();
     if(r.type==="Call"){d.call=true;d.dials++;if(r.conn)d.conn++}else if(book){d.bk=true;if(!r.canceled)d.made++}else{d.txt=true;if(r.type==="Text")d.texts++;else d.replies++}});
@@ -278,7 +279,7 @@ const kixieTextOn=()=>S.tracker.some(r=>(r.type==="Text"||r.type==="Text Reply")
 function statDays(all){if(!S.stats)return [];if(all)return S.stats.days;
   const base=S.stats.days.filter(d=>d.date.startsWith(MONTH)),k=kixieDays(),dates=Object.keys(k);if(!dates.length)return base;
   const by={};base.forEach(d=>by[d.date]={...d});
-  dates.forEach(dt=>{const o=by[dt]=by[dt]||Object.fromEntries([...SK.map(x=>[x,0]),["date",dt]]);const k0=k[dt];if(k0.call){o.dials=k0.dials;o.conn=k0.conn}if(k0.txt){o.texts=k0.texts;o.replies=k0.replies}if(k0.bk)o.made=k0.made;if(k0.oc){o.shown=k0.shown;o.noshow=k0.noshow}});
+  dates.forEach(dt=>{const o=by[dt]=by[dt]||Object.fromEntries([...SK.map(x=>[x,0]),["date",dt]]);const k0=k[dt];if(k0.call){o.dials=k0.dials;o.conn=k0.conn}if(k0.txt){o.texts=k0.texts;o.replies=k0.replies}if(k0.bk)o.made=k0.made;if(k0.oc){o.shown=k0.shown;o.noshow=k0.noshow;o.pres=k0.shown}if(k0.ap){o.sales=k0.sales;o.alp=k0.alp}});
   return Object.values(by).sort((a,b)=>a.date<b.date?-1:1)}
 function totals(all){const st=S.stats;if(!st)return null;const useBase=st.base&&(all||(st.baseDate&&st.baseDate.startsWith(MONTH)));const t={};
   SK.forEach(k=>t[k]=(useBase?st.base[k]:0)+statDays(all).reduce((a,d)=>a+d[k],0));t.src=!all&&kixieOn()?"Kixie":"";t.textSrc=!all&&kixieTextOn()?"Kixie":"";t.bookSrc=!all&&kixieBookOn()?"Tracker":"";return t}
@@ -287,7 +288,7 @@ async function load(){
   $("sync").textContent="Loading…";
   if(!S.mcp){try{S.mcp=(window.claude&&window.claude.use)?await window.claude.use("mcp"):null}catch(e){S.mcp=null}}
   if(!S.mcp){S.loaded=true;showBanner("This page reads your Master Lead/Activity Tracker sheet, so open it inside Claude (claude.ai) to see your data.");$("sync").textContent="Not connected";renderAll();return}
-  const jobs={tracker:getRange("Tracker!A2:L5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),stats:getRange("Stats!A5:L35"),sched:getRange("'Weekly Schedule'!A2:F80"),cadence:getRange("Cadence!A2:G40"),scripts:getRange("Scripts!A2:C60"),plan:getRange("'November 20k ALP Plan'!A2:B40"),leadsTab:getRange("Leads!A1:T2000")};
+  const jobs={tracker:getRange("Tracker!A2:L5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),sched:getRange("'Weekly Schedule'!A2:F80"),cadence:getRange("Cadence!A2:G40"),scripts:getRange("Scripts!A2:C60"),plan:getRange("'November 20k ALP Plan'!A2:B40"),leadsTab:getRange("Leads!A1:T2000")};
   const keys=Object.keys(jobs), res=await Promise.allSettled(keys.map(k=>jobs[k]));
   S.err={};let bad=0,first=null;
   res.forEach((r,i)=>{const k=keys[i];if(r.status==="fulfilled"){const v=r.value;
@@ -515,16 +516,15 @@ function barChart(days){
        `<text class="ax" x="${cx}" y="${H-10}" text-anchor="middle">${fd(d.date)}</text>`});
   return `<div class="chartbox">${s}</svg></div><div class="legend"><span><i style="background:#2F5D43"></i>Dials</span><span><i style="background:#B8934A"></i>Conversations</span></div>`}
 function renderStats(){
-  const st=S.stats, all=S.stv==="all", t=totals(all), days=statDays(all);
-  if(!st||!t){$("p-stats").innerHTML=srcNote("stats")+sec("Stats","",empty("No daily stats yet.","Fill in one row per day on the Stats tab of the sheet."));return}
+  const st=S.stats, all=false, t=totals(all), days=statDays(all);
+  if(!st||!t){$("p-stats").innerHTML=srcNote("stats")+sec("Stats","",empty("No activity yet this month.","Calls, texts and bookings appear here as they are logged in the Tracker."));return}
   const rate=(a,b,f)=>[a,b,f];
   const rates=[["Dials that reach someone",pct(t.conn,t.dials),"Conversations ÷ dials"],["Texts that get a reply",pct(t.replies,t.texts),"Replies ÷ texts sent"],["Conversations that book",pct(t.made,t.conn),"Bookings ÷ conversations"],
     ["Bookings that show",pct(t.shown,t.made),"Shown ÷ bookings made"],["Bookings that no-show",pct(t.noshow,t.made),"No-shows ÷ bookings made"],["Dials per conversation",n1(t.conn?t.dials/t.conn:NaN),"Dials ÷ conversations"],["Dials per booking",n1(t.made?t.dials/t.made:NaN),"Dials ÷ bookings made"]];
   $("p-stats").innerHTML=srcNote("stats")+
-   `<div class="seg" role="group" aria-label="Period"><button data-stv="month" aria-pressed="${!all}">${MONTH_NAME}</button><button data-stv="all" aria-pressed="${all}">All time</button></div>`+
-   sec(all?"All time":MONTH_NAME+" so far",all?(st.base?`includes ${esc(st.baseLabel)}`:""):(st.base&&st.baseDate&&st.baseDate.startsWith(MONTH)?`includes ${esc(st.baseLabel)}`:"daily rows dated "+MONTH_NAME),`<div class="kpis">${kpi("Dials",t.dials.toLocaleString("en-CA"),all?"":t.src?"from Kixie":"from the Stats tab")}${kpi("Conversations",t.conn,pct(t.conn,t.dials)+" of dials")}${kpi("Texts sent",t.texts,pct(t.replies,t.texts)+" replied"+(t.textSrc?" · from Kixie":""))}${kpi("Bookings made",t.made,pct(t.shown,t.made)+" showed")}${kpi("Shown",t.shown,t.noshow+" no-shows")}</div>`)+
+   sec(all?"All time":MONTH_NAME+" so far","from the Tracker",`<div class="kpis">${kpi("Dials",t.dials.toLocaleString("en-CA"),t.src?"from Kixie":"")}${kpi("Conversations",t.conn,pct(t.conn,t.dials)+" of dials")}${kpi("Texts sent",t.texts,pct(t.replies,t.texts)+" replied"+(t.textSrc?" · from Kixie":""))}${kpi("Bookings made",t.made,pct(t.shown,t.made)+" showed")}${kpi("Shown",t.shown,t.noshow+" no-shows")}</div>`)+
    sec("Rates","",table(["Measure","Result","How"],rates.map(r=>tr([esc(r[0]),`<b>${r[1]}</b>`,`<span class="dim">${esc(r[2])}</span>`],{left:[2]})),{left:[2]}))+
-   sec("Daily",all?"from the Stats tab, month-to-date row not included":"dials, conversations and texts from Kixie when logged, the rest from the Stats tab",days.length?barChart(days):empty("No daily rows for "+(all?"any month":MONTH_NAME)+" yet.","Add a row for each day you work on the Stats tab."))+
+   sec("Daily","dials, texts, bookings and outcomes logged in the Tracker",days.length?barChart(days):empty("No daily rows for "+MONTH_NAME+" yet.","Rows appear as calls, texts and bookings are logged."))+
    (days.length?table(["Day","Dials","Convos","Texts","Replies","Booked","Shown","No-show"],[...days].reverse().map(d=>tr([fd(d.date),d.dials,d.conn,d.texts,d.replies,d.made,d.shown,d.noshow]))):"")
 }
 
