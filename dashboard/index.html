@@ -357,9 +357,19 @@ function renderDashboard(){
        :empty("No replies waiting.","Leads that texted back or talked to you show up here."))+
    `</div>`+
    sec("Lead pipeline",`${S.leads.length} leads`,S.leads.length?pipeline(S.leads):empty("No leads loaded.","The Leads tab had no rows."))+
-   sec("Call queue",`${queueRows().length} on the call list${callBack.length?` · ${callBack.length} to call back first`:""}`,
-     steps.length?table(["Next step","Leads"],steps.map(([s,c])=>tr([esc(s),c]))):empty("The call queue is empty.","Call Lists has no rows."))
+   callQueue(steps,callBack)
 }
+
+function callQueue(steps,callBack){
+  const M=S.leadsTab?mergeLeads().filter(x=>x.stage!==""&&x.stage!==undefined):[];
+  if(!M.length)return sec("Call queue",`${queueRows().length} on the call list${callBack.length?` · ${callBack.length} to call back first`:""}`,
+     steps.length?table(["Next step","Leads"],steps.map(([s,c])=>tr([esc(s),c]))):empty("The call queue is empty.","Call Lists has no rows."));
+  const NEXT=["First text on a text day (Mon, Wed)","Call Attempt 1 on a call day","Follow-up text, then Call Attempts 2 and 3","Reminder, then present or reschedule"];
+  const toCall=M.filter(x=>x.stage===1||x.stage===2), first=M.filter(x=>x.stage===0), hot=toCall.filter(x=>x.status==="Follow-up");
+  const blocks={};toCall.forEach(x=>{const b=x.block||"No call block";blocks[b]=(blocks[b]||0)+1});
+  return sec("Call queue",`${toCall.length} to call · ${first.length} waiting for a first text${hot.length?` · ${hot.length} replied`:""}`,
+    table(["Stage","Next step","Leads"],NEXT.map((n,i)=>tr([esc(i+" "+STAGES[i]),esc(n),M.filter(x=>x.stage===i).length],{left:[1]})),{left:[1]}))+
+   (toCall.length?sec("To call, by call block","stages 1 and 2",table(["Call block (Regina time)","Leads"],Object.entries(blocks).sort((a,b)=>b[1]-a[1]).map(([k,c])=>tr([esc(k),c])))):"")}
 
 /* ---------- Nov 20k plan ---------- */
 function renderPlan(){
