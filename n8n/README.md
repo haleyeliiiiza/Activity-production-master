@@ -71,3 +71,9 @@ Plan on demand: `plan-week` accepts `?start=YYYY-MM-DD` (any day in the week), `
 ## Daily call list email
 
 Monday to Saturday at 7:30 AM Regina time the `Daily Call List Time` trigger emails today's plan (read from the Playbook schedule, including presentations) and a call list for each planned call block: Stage 1 and 2 leads whose Best Call Block matches, replies first, then Stage 1, then the longest since their last dial, up to 25 per block, with dials, progress toward the next text and the lead's reply. Missed presentations (Stage 4) are listed for one reschedule call; opt-outs and call control leads are left out. Open `daily-list` (with an optional `?date=YYYY-MM-DD`) to send it on demand.
+
+## Reply handling and stage updates
+
+**Replies.** Every incoming Kixie text from a lead on the Leads tab is classified. Stop, unsubscribe, wrong number and not interested (including a short "no") close the lead: Stage 5 and the reason is added to the Outcome column. "Yes", "call me", a time of day or anything else emails you an alert with a tap-to-call button (the lead also goes to the top of the next call list). Replies from numbers that are not on the Leads tab are ignored. The Leads tab has a `Phone Key` helper column (last 10 digits) that the updates match on.
+
+**Stages.** At 11 PM every night (or on demand with the `update-stages` link) each lead's Stage is recalculated from the Tracker since the stage baseline date: texted becomes 1, dialed becomes 2, an upcoming Calendly booking 3, a no-show or cancel 4, and an opt-out, call control, held presentation or sale 5. Only leads whose stage changed are written.
