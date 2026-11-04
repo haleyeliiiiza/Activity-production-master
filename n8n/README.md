@@ -77,3 +77,11 @@ Monday to Saturday at 7:30 AM Regina time the `Daily Call List Time` trigger ema
 **Replies.** Every incoming Kixie text from a lead on the Leads tab is classified. Stop, unsubscribe, wrong number and not interested (including a short "no") close the lead: Stage 5 and the reason is added to the Outcome column. "Yes", "call me", a time of day or anything else emails you an alert with a tap-to-call button (the lead also goes to the top of the next call list). Replies from numbers that are not on the Leads tab are ignored. The Leads tab has a `Phone Key` helper column (last 10 digits) that the updates match on.
 
 **Stages.** At 11 PM every night (or on demand with the `update-stages` link) each lead's Stage is recalculated from the Tracker since the stage baseline date: texted becomes 1, dialed becomes 2, an upcoming Calendly booking 3, a no-show or cancel 4, and an opt-out, call control, held presentation or sale 5. Only leads whose stage changed are written.
+
+## Reschedule text, logging a sale, weekly summary
+
+**Reschedule text.** A lead at Stage 4 (Missed) gets one automatic reschedule draft, the day after the miss, on a text day, inside their call block, using the "Text - missed presentation reschedule" row on the Scripts tab. It is approved by email like the other texts. It is skipped if the lead was already texted since the miss or already got a reschedule text.
+
+**Logging a sale.** The appointment outcome page has a premium (ALP) box and three buttons: Presentation held, no sale; Held and sold; No-show. "Held and sold" needs an ALP and adds both a Presentation Held row and an Application Submitted row with the premium to the Tracker.
+
+**Weekly summary.** Sunday at 6:30 PM Regina time (after the weekly plan) the summary email shows this week and the month so far (dials, conversations, texts, replies, bookings, presentations held, no-shows, sales, ALP) against the goals in the `Plan:` rows of Text Settings, the daily ALP and presentations needed from here, appointments still needing an outcome, held presentations with no sale logged, and lead counts by stage. Open `weekly-summary` (optional `?week=YYYY-MM-DD`) to send it on demand.
