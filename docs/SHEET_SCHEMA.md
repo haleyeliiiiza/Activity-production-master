@@ -119,3 +119,7 @@ Weekly Schedule, Cadence, Scripts, Sale by Fri Oct 30, Stage Alignment Plan: pla
 - **Import log**: Timestamp, Source, Rows added, Rows skipped, Notes. Written by n8n.
 - A dedupe **Key** column on Tracker so re-imports are safe.
 - Daily stats are computed from the Tracker (the old Stats tab is archived).
+
+## What counts as a dial or a text
+
+The Tracker logs every Kixie call and text. The hub counts a **dial** only when the call came from a power list with Category `Leads` on the Power Lists tab (ON, AB/SK, BC), and a **text** only when the number is a lead on the Leads tab. Manual, inbound, recruiting and other-list calls, and texts to or from other numbers, stay in the Tracker but are not counted.

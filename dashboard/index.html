@@ -212,9 +212,13 @@ function showBanner(msg){const b=$("banner");if(!msg){b.hidden=true;b.className=
 async function getRange(range){const r=await S.mcp.callTool(SRV,"get_values",{spreadsheetId:SID,range},{cache:false});return (r.payload&&r.payload.values)||[]}
 
 const connected=n=>/^connected/i.test(n)&&!/no answer|voicemail|call control/i.test(n);
+// A dial is a call from one of the Leads power lists (ON, AB/SK, BC on the Power Lists tab). Manual, inbound and other-list calls are not dials.
+const isDial=r=>r.type==="Call"&&(S.leadLists&&S.leadLists.size?S.leadLists.has(r.listId):Boolean(r.listId));
+// A text counts only when it is to or from a lead on the Leads tab (the contacts in the power lists).
+const isLeadText=r=>!(r.type==="Text"||r.type==="Text Reply")||!(S.leadPhones&&S.leadPhones.size)||S.leadPhones.has(String(r.phone||"").replace(/\D/g,"").slice(-10));
 function parseTracker(v){return v.filter(r=>r[0]||r[1]).map(r=>{const notes=String(r[7]||"");
   return {date:parseDate(r[0]),type:String(r[1]||"").trim(),name:String(r[2]||"").trim(),premium:num(r[5]),source:String(r[6]||"").trim(),
-    notes,disp:notes.split("|")[0].trim(),conn:connected(notes),dir:(t=>t==="Text Reply"?"in":t==="Text"?"out":t==="Call"?(/inbound/i.test(notes)?"in":"out"):"")(String(r[1]||"").trim()),interview:/interview/i.test(notes),list:String(r[9]||"").trim(),appt:String(r[10]||"").trim(),bid:String(r[11]||"").trim(),phone:String(r[3]||"").trim(),email:String(r[4]||"").trim().toLowerCase()}}).filter(r=>r.date)}
+    notes,disp:notes.split("|")[0].trim(),conn:connected(notes),dir:(t=>t==="Text Reply"?"in":t==="Text"?"out":t==="Call"?(/inbound/i.test(notes)?"in":"out"):"")(String(r[1]||"").trim()),interview:/interview/i.test(notes),list:String(r[9]||"").trim(),appt:String(r[10]||"").trim(),bid:String(r[11]||"").trim(),phone:String(r[3]||"").trim(),email:String(r[4]||"").trim().toLowerCase(),listId:String(r[8]||"").trim()}}).filter(r=>r.date)}
 // A booking is canceled when a Booking Canceled row shares its Booking ID, or its name and appointment time (rows logged before Booking IDs existed).
 function markCanceled(T){const ids=new Set(),keys=new Set();T.filter(r=>r.type==="Booking Canceled").forEach(r=>{if(r.bid)ids.add(r.bid);if(r.appt)keys.add(r.name.toLowerCase()+"|"+r.appt)});
   T.forEach(r=>{r.canceled=r.type==="Appointment Set"&&Boolean((r.bid&&ids.has(r.bid))||(r.appt&&keys.has(r.name.toLowerCase()+"|"+r.appt)))});return T}
@@ -272,15 +276,17 @@ function kixieDays(){const m={},blank=()=>({dials:0,conn:0,texts:0,replies:0,mad
     const book=r.type==="Appointment Set"&&!r.interview;
     if(r.type==="Application Submitted"){const d=m[r.date]=m[r.date]||blank();d.ap=true;d.sales++;d.alp+=r.premium;return}
     if(r.type!=="Call"&&r.type!=="Text"&&r.type!=="Text Reply"&&!book)return;
+    if(r.type==="Call"&&!isDial(r))return;
+    if(!isLeadText(r))return;
     const d=m[r.date]=m[r.date]||blank();
     if(r.type==="Call"){d.call=true;d.dials++;if(r.conn)d.conn++}else if(book){d.bk=true;if(!r.canceled)d.made++}else{d.txt=true;if(r.type==="Text")d.texts++;else d.replies++}});
   // shown and no-shows count on the appointment day when the row has one, otherwise the day it was logged
   S.tracker.filter(r=>r.type==="Presentation Held"||r.type==="No-Show").forEach(r=>{const dt=r.appt?r.appt.slice(0,10):r.date;if(!dt.startsWith(MONTH))return;
     const d=m[dt]=m[dt]||blank();d.oc=true;if(r.type==="Presentation Held")d.shown++;else d.noshow++});
   return m}
-const kixieOn=()=>S.tracker.some(r=>r.type==="Call"&&r.date.startsWith(MONTH));
+const kixieOn=()=>S.tracker.some(r=>isDial(r)&&r.date.startsWith(MONTH));
 const kixieBookOn=()=>S.tracker.some(r=>r.type==="Appointment Set"&&!r.interview&&r.date.startsWith(MONTH));
-const kixieTextOn=()=>S.tracker.some(r=>(r.type==="Text"||r.type==="Text Reply")&&r.date.startsWith(MONTH));
+const kixieTextOn=()=>S.tracker.some(r=>(r.type==="Text"||r.type==="Text Reply")&&isLeadText(r)&&r.date.startsWith(MONTH));
 function statDays(all){if(!S.stats)return [];if(all)return S.stats.days;
   const base=S.stats.days.filter(d=>d.date.startsWith(MONTH)),k=kixieDays(),dates=Object.keys(k);if(!dates.length)return base;
   const by={};base.forEach(d=>by[d.date]={...d});
@@ -293,14 +299,14 @@ async function load(){
   $("sync").textContent="Loading…";
   if(!S.mcp){try{S.mcp=(window.claude&&window.claude.use)?await window.claude.use("mcp"):null}catch(e){S.mcp=null}}
   if(!S.mcp){S.loaded=true;showBanner("This page reads your Master Lead/Activity Tracker sheet, so open it inside Claude (claude.ai) to see your data.");$("sync").textContent="Not connected";renderAll();return}
-  const jobs={tracker:getRange("Tracker!A2:L5000"),playbook:getRange("Playbook!A1:G200"),scripts:getRange("Scripts!A2:C60"),leadsTab:getRange("Leads!A1:T2000")};
+  const jobs={tracker:getRange("Tracker!A2:L5000"),playbook:getRange("Playbook!A1:G200"),powerLists:getRange("'Power Lists'!A2:C60"),scripts:getRange("Scripts!A2:C60"),leadsTab:getRange("Leads!A1:T2000")};
   const keys=Object.keys(jobs), res=await Promise.allSettled(keys.map(k=>jobs[k]));
   S.err={};let bad=0,first=null;
   res.forEach((r,i)=>{const k=keys[i];if(r.status==="fulfilled"){const v=r.value;
-      if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="playbook"){const P=playbookSections(v);S.sched=parseSched(P["weekly schedule"]||[]);S.cadence=parseCadence(P["cadence"]||[]);S.plan=parsePlan(P["monthly plan"]||[])}else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="leadsTab")S.leadsRaw=parseLeadsTab(v);else S.stats=parseStats(v)}
+      if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="playbook"){const P=playbookSections(v);S.sched=parseSched(P["weekly schedule"]||[]);S.cadence=parseCadence(P["cadence"]||[]);S.plan=parsePlan(P["monthly plan"]||[])}else if(k==="powerLists"){S.leadLists=new Set(v.filter(r=>String(r[0]||"").trim()&&/^leads$/i.test(String(r[2]||"").trim())).map(r=>String(r[0]).trim()))}else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="leadsTab")S.leadsRaw=parseLeadsTab(v);else S.stats=parseStats(v)}
     else{S.err[k]=r.reason;if(k==="playbook"){S.err.sched=S.err.cadence=S.err.plan=r.reason}bad++;first=first||r.reason}});
   // Use the Leads tab when it has leads; otherwise fall back to All Leads Master and Call Lists.
-  S.leadsTab=Boolean(S.leadsRaw&&S.leadsRaw.length);if(S.leadsTab){S.leads=S.leadsRaw;S.queue=[]}
+  S.leadPhones=new Set((S.leadsRaw||[]).map(l=>dg10(l.phone)).filter(x=>x.length>=7));S.leadsTab=Boolean(S.leadsRaw&&S.leadsRaw.length);if(S.leadsTab){S.leads=S.leadsRaw;S.queue=[]}
   S.loaded=true;S.at=new Date();
   showBanner(bad===keys.length?errMsg(first):bad?"Some data didn't load ("+keys.filter(k=>S.err[k]).join(", ")+"). "+errMsg(first):"");
   $("sync").innerHTML=`Updated ${S.at.toLocaleTimeString("en-CA",{hour:"numeric",minute:"2-digit"})}<button id="refresh">Refresh</button>`;
@@ -325,7 +331,7 @@ const srcNote=(...ks)=>{const k=ks.find(x=>S.err[x]);return k?`<div class="banne
 function nov(){const t=S.tracker.filter(r=>r.date.startsWith(PLAN.month));const by=ty=>t.filter(r=>r.type===ty);
   const apps=by("Application Submitted"), st=totals();
   const presT=by("Presentation Held").length;
-  return {rows:t,calls:by("Call").filter(r=>true),conv:by("Call").filter(r=>r.conn).length,booked:by("Appointment Set").filter(r=>!r.interview&&!r.canceled),pres:presT,
+  return {rows:t,calls:by("Call").filter(isDial),conv:by("Call").filter(r=>isDial(r)&&r.conn).length,booked:by("Appointment Set").filter(r=>!r.interview&&!r.canceled),pres:presT,
     presFromStats:!presT&&st?st.shown:0,noshow:by("No-Show").length,apps,issued:by("Policy Issued"),alp:apps.reduce((a,r)=>a+r.premium,0)}}
 function weekNums(w,N){const inW=r=>r.date>=w.start&&r.date<=w.end;const apps=N.apps.filter(inW);
   return {pres:S.tracker.filter(r=>r.type==="Presentation Held"&&inW(r)).length,sales:apps.length,alp:apps.reduce((a,r)=>a+r.premium,0)}}
@@ -399,7 +405,7 @@ const STAGE_BASE="2026-11-02",STAGES=["Not contacted","Text sent","Called","Book
 const stageName=s=>s===""||s==null?"":s+" "+STAGES[s];
 function leadsFromTab(){const idx=new Map(),nos=new Set();
   S.tracker.forEach(r=>{if(r.type==="No-Show"&&r.date>=STAGE_BASE){const k=dg10(r.phone);if(k.length>=7)nos.add(k)}});
-  S.tracker.forEach(r=>{if(r.date<=HISTORY_END||(r.type!=="Call"&&r.type!=="Text"))return;const k=dg10(r.phone);if(k.length<7)return;
+  S.tracker.forEach(r=>{if(r.date<=HISTORY_END||(r.type!=="Call"&&r.type!=="Text")||(r.type==="Call"&&!isDial(r)))return;const k=dg10(r.phone);if(k.length<7)return;
     let e=idx.get(k);if(!e){e={cc:false,dials:0,texts:0,lastDial:"",lastText:""};idx.set(k,e)}
     if(r.type==="Call"){e.dials++;if(r.date>e.lastDial)e.lastDial=r.date;if(/call control/i.test(r.notes||""))e.cc=true}else{e.texts++;if(r.date>e.lastText)e.lastText=r.date}});
   return S.leads.map(l=>{const e=idx.get(dg10(l.phone))||{cc:false,dials:0,texts:0,lastDial:"",lastText:""},hd=lastIso(l.callDates),ht=lastIso(l.textDates);
@@ -509,10 +515,10 @@ function renderActivity(){
   const label=actLabel(f);
   if(f.y==="all"){f.m="all";f.d="all"}
   if(!R.length){$("p-activity").innerHTML=srcNote("tracker")+sec("Activity",esc(label),controls+empty("No activity in "+esc(label)+".","Pick another period, or tap This month."));return}
-  const of=t=>R.filter(r=>r.type===t), calls=of("Call"), conv=calls.filter(r=>r.conn).length, book=of("Appointment Set").filter(r=>!r.interview&&!r.canceled).length, canc=of("Booking Canceled").length,
-    pres=of("Presentation Held").length, ns=of("No-Show").length, apps=of("Application Submitted"), alp=apps.reduce((a,r)=>a+r.premium,0), tx=of("Text").length, rp=of("Text Reply").length;
+  const of=t=>R.filter(r=>r.type===t), calls=of("Call").filter(isDial), conv=calls.filter(r=>r.conn).length, book=of("Appointment Set").filter(r=>!r.interview&&!r.canceled).length, canc=of("Booking Canceled").length,
+    pres=of("Presentation Held").length, ns=of("No-Show").length, apps=of("Application Submitted"), alp=apps.reduce((a,r)=>a+r.premium,0), tx=of("Text").filter(isLeadText).length, rp=of("Text Reply").filter(isLeadText).length;
   const days={};R.forEach(r=>{const d=days[r.date]=days[r.date]||{date:r.date,dials:0,conv:0,txt:0,rep:0,book:0,pres:0,ns:0,apps:0,alp:0};
-    if(r.type==="Call"){d.dials++;if(r.conn)d.conv++}else if(r.type==="Text")d.txt++;else if(r.type==="Text Reply")d.rep++;else if(r.type==="Appointment Set"&&!r.interview&&!r.canceled)d.book++;else if(r.type==="Presentation Held")d.pres++;
+    if(r.type==="Call"){if(isDial(r)){d.dials++;if(r.conn)d.conv++}}else if(r.type==="Text"){if(isLeadText(r))d.txt++}else if(r.type==="Text Reply"){if(isLeadText(r))d.rep++}else if(r.type==="Appointment Set"&&!r.interview&&!r.canceled)d.book++;else if(r.type==="Presentation Held")d.pres++;
     else if(r.type==="No-Show")d.ns++;else if(r.type==="Application Submitted"){d.apps++;d.alp+=r.premium}});
   const all=Object.values(days).sort((a,b)=>a.date<b.date?1:-1), drows=all.slice(0,31);
   const lists={};calls.filter(r=>r.list).forEach(r=>{const l=lists[r.list]=lists[r.list]||{n:r.list,d:0,c:0};l.d++;if(r.conn)l.c++});
