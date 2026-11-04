@@ -168,8 +168,8 @@ const OUTCOME_URL="https://haleyeliiiiza.app.n8n.cloud/webhook/appt-outcome?book
 // Dial and text counts typed into the Leads tab cover everything up to this date. Kixie rows in the Tracker after it are added on top.
 const HISTORY_END="2026-10-31";
 const PLAN={month:"2026-11",goal:20000,avg:1000,close:0.30,pres:67,sales:20,
-  weeks:[{label:"Nov 2–6",start:"2026-11-02",end:"2026-11-06",pres:16,sales:5},{label:"Nov 9–13",start:"2026-11-09",end:"2026-11-13",pres:16,sales:5},
-         {label:"Nov 16–20",start:"2026-11-16",end:"2026-11-20",pres:16,sales:5},{label:"Nov 23–30",start:"2026-11-23",end:"2026-11-30",pres:19,sales:5}]};
+  weeks:[{label:"Nov 4–6",start:"2026-11-04",end:"2026-11-06",pres:10,sales:3},{label:"Nov 9–14",start:"2026-11-09",end:"2026-11-14",pres:19,sales:6},
+         {label:"Nov 16–21",start:"2026-11-16",end:"2026-11-21",pres:19,sales:6},{label:"Nov 23–28",start:"2026-11-23",end:"2026-11-28",pres:19,sales:5}]};
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -189,8 +189,9 @@ function parseDate(s,defY){s=String(s??"").trim();let m;
   if(defY&&(m=s.match(/^(\d{1,2})\/(\d{1,2})$/)))return iso(defY,+m[1],+m[2]);
   return null}
 
-/* ---------- plan calendar: weekdays in November ---------- */
-const WORKDAYS=[]; for(let d=1;d<=30;d++){const dow=new Date(Date.UTC(2026,10,d)).getUTCDay(); if(dow>=1&&dow<=5)WORKDAYS.push(iso(2026,11,d))}
+/* ---------- plan calendar: working days in November ---------- */
+// The 21 working days in the plan: Nov 4-6, 9-14, 16-21, 23-28 (Saturdays included, 20 hours a week).
+const WORKDAYS=[4,5,6,9,10,11,12,13,14,16,17,18,19,20,21,23,24,25,26,27,28].map(d=>iso(2026,11,d));
 const weekOf=d=>PLAN.weeks.find(w=>d>=w.start&&d<=w.end);
 const planDay=d=>{const w=weekOf(d);if(!w)return 0;const n=WORKDAYS.filter(x=>x>=w.start&&x<=w.end).length;return PLAN.avg*w.sales/n};
 
@@ -554,7 +555,7 @@ function prodChart(N){
      `<text class="lbl" x="${x(n-1)+6}" y="${y(plan[n-1])+4}" style="fill:#7A5E22">Plan</text>`;
   if(ti>=0){s+=`<polyline fill="none" stroke="#2F5D43" stroke-width="2.5" points="${act.slice(0,ti+1).map((v,i)=>x(i)+","+y(v)).join(" ")}"/><circle cx="${x(ti)}" cy="${y(act[ti])}" r="4" fill="#2F5D43"/>`+
      `<text class="lbl" x="${x(ti)+7}" y="${y(act[ti])-8}">${money(act[ti])}</text>`}
-  return `<div class="chartbox">${s}</svg></div><div class="legend"><span><i style="background:#2F5D43"></i>Actual ALP submitted</span><span><i style="background:#B8934A"></i>Plan, spread over the weekdays of each week</span></div>`}
+  return `<div class="chartbox">${s}</svg></div><div class="legend"><span><i style="background:#2F5D43"></i>Actual ALP submitted</span><span><i style="background:#B8934A"></i>Plan, spread over the working days of each week</span></div>`}
 function renderProduction(){
   const N=nov(), pres=N.pres||N.presFromStats, remaining=WORKDAYS.filter(d=>d>=TODAY).length||1, sales=N.apps.length;
   const wrows=PLAN.weeks.map(w=>{const a=weekNums(w,N), cur=TODAY>=w.start&&TODAY<=w.end;
@@ -564,7 +565,7 @@ function renderProduction(){
       ${kpi("Presentations",pres,`plan ${PLAN.pres}${N.pres?"":N.presFromStats?" · bookings shown":""}`,pres/PLAN.pres)}${kpi("Close rate",pres?pct(sales,pres):"—",`plan ${Math.round(PLAN.close*100)}%`)}${kpi("Still needed",money(Math.max(0,PLAN.goal-N.alp)),`${money(Math.max(0,PLAN.goal-N.alp)/remaining)} per working day`)}</div>`)+
    sec("Against plan","",prodChart(N))+
    sec("Week by week","",table(["Week","Pres. plan","Pres.","Sales plan","Sales","ALP plan","ALP"],wrows))+
-   `<div class="banner">Plan: ${money(PLAN.avg)} average policy, ${Math.round(PLAN.close*100)}% close rate, ${PLAN.pres} presentations, ${WORKDAYS.length} weekdays. Sales and ALP count Application Submitted entries; presentations count Presentation Held entries, or bookings shown on the Stats tab until those are logged.</div>`
+   `<div class="banner">Plan: ${money(PLAN.avg)} average policy, ${Math.round(PLAN.close*100)}% close rate, ${PLAN.pres} presentations, ${WORKDAYS.length} working days. Sales and ALP count Application Submitted entries; presentations count Presentation Held entries, or bookings shown until those are logged.</div>`
 }
 
 /* ---------- shell ---------- */
