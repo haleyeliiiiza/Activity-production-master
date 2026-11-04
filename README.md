@@ -22,10 +22,10 @@ Manual entry ────────────────┘                
 | Tab | What it shows | Sheet tabs it reads |
 |---|---|---|
 | Dashboard | November goal, today's plan, this week vs. plan, next presentations, follow-ups, pipeline, call queue | all of the below |
-| Monthly Plan | The plan from the sheet with live progress and a week-by-week table | November 20k ALP Plan, Tracker |
+| Monthly Plan | The plan from the sheet with live progress and a week-by-week table | Playbook (Monthly plan), Tracker |
 | Leads | Every lead once: pipeline, status, next step, cohort, best call block, dials and texts (typed history plus live Kixie activity), email, sponsor and beneficiary. Switch between All leads and the Call list; filter by inbox, type, province and status; sort and search | Leads (or All Leads Master and Call Lists while Leads is empty), Tracker |
-| Weekly schedule | Day-by-day plan, from today or all days, with script links | Weekly Schedule |
-| Cadence | Text and call steps with what to do on no answer, interest or refusal | Cadence |
+| Weekly schedule | Day-by-day plan, from today or all days, with script links | Playbook (Weekly schedule) |
+| Cadence | Text and call steps with what to do on no answer, interest or refusal | Playbook (Cadence) |
 | Scripts | Text, call and objection scripts with copy buttons and draft flags | Scripts |
 | Activity | Dials, conversations, bookings, presentations by day and power list, latest entries | Tracker |
 | Stats | Running totals, conversion rates, daily dials and conversations | Tracker (computed) |

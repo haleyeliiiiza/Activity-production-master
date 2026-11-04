@@ -31,7 +31,7 @@ The report's **Calculate Progress** step is [calculate-progress.js](calculate-pr
 
 The plan numbers are constants at the top of the code. When the next month's plan exists, change them there and in the dashboard page together.
 
-Source is Tracker only. Dials and bookings that are only typed on the `Stats` tab are not in the email.
+Source is Tracker only. The old Stats tab no longer exists.
 
 ### Automatic texting
 

@@ -38,7 +38,7 @@ One row per lead. Columns: Lead Type, Name, Phone, Province, Email, Sponsor, Ben
 - **Stage** (column T) is the lead's place in the cycle: 0 Not contacted, 1 Text sent, 2 Called, 3 Booked, 4 Missed (no-show or cancel), 5 Closed (not interested, unreachable, call control, presented with no sale, also sold, bad number, opted out). It was set on 2026-11-02 (leads with 10 or more dials and no conversation restart at 0; leads that hit call control went to 5 Closed, and a new call control disposition closes a lead too, with no call control text). New imported leads start at 0. The hub and the text drafting advance a lead from Tracker activity after the baseline date; the sheet column itself is the starting stage.
 - You work Outcome, Next Step, Cohort, Best Call Block, Presentation Date and Notes. A lead is on the call list when it has a Next Step.
 - The four history columns hold the dial and text counts and dates typed before Kixie logging began. Stop typing them. The hub adds Kixie dials and texts from the Tracker (dated after 2026-10-31) on top, matched by the last 10 digits of the phone.
-- This tab replaces **All Leads Master** and **Call Lists**, which can be archived. The hub still falls back to them if Leads is empty.
+- This tab replaced All Leads Master and Call Lists, which have been deleted.
 
 ## Tab: Text Settings
 
@@ -83,13 +83,11 @@ One row per drafted text. Columns: Draft ID, Batch ID, Created, Kind (First text
 | C | Category | `Leads`, or `Recruiting`. Calls from Recruiting lists are written as `Recruiting Call` |
 | D | Notes | |
 
-## Tab: All Leads Master (manual, per-lead)
+## Current tabs (8)
 
-Lead Inbox, Lead Type, Lead Name, Phone Number, Province, Call Dates, Total Dials, Text Dates, Total Texts, Presentation Date, Outcome. A small Metric / Goal / Actual block (Dials, Texts, ...) sits in columns M to O. This is the per-lead history the Pipeline tab would read.
+Leads, Lead Import, Tracker, Text Queue, Scripts, Playbook, Text Settings, Power Lists.
 
-## Tab: Call Lists (manual working list)
-
-Lead Inbox, Lead Type, Province, Cohort, Lead Name, Phone Number, Best call block, Text Dates, Dial Dates, Next step, Notes.
+**Playbook** holds the planning material in labelled sections: `## Monthly plan`, `## Weekly schedule`, `## Cadence`, `## Stages` (live stage counts) and `## Rules and routine`. A row whose first cell starts with `## ` names a section and the next row is its column header. The hub reads this tab; the automations do not. It replaced Weekly Schedule, Cadence, November 20k ALP Plan and Stage Alignment Plan. The old Stats, All Leads Master and Call Lists tabs were deleted.
 
 ## Tab: Stats (archived, hidden)
 

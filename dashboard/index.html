@@ -236,6 +236,10 @@ function parseQueue(v){return v.filter(r=>r[4]).map(r=>({type:String(r[1]||"").t
   block:String(r[6]||"").trim(),texts:String(r[7]||"").trim(),dials:String(r[8]||"").trim(),next:String(r[9]||"").trim(),step:String(r[9]||"").split(/ - | – /)[0].trim()||"No next step",notes:String(r[10]||"").trim()}))}
 function parseLong(s){const m=String(s).match(/([A-Za-z]{3})\w*\s+(\d{1,2}),\s*(\d{4})/);if(!m)return null;const mi=MON.findIndex(x=>x.toLowerCase()===m[1].toLowerCase());return mi<0?null:iso(m[3],mi+1,+m[2])}
 const cell=(r,i)=>String(r[i]||"").trim();
+// The Playbook tab holds several sections. A row starting with "## " names a section; the row after it is its column header.
+function playbookSections(v){const out={};let cur=null,skip=false;(v||[]).forEach(r=>{const a=String((r&&r[0])??"").trim();
+  if(/^##\s+/.test(a)){cur=a.replace(/^##\s+/,"").trim().toLowerCase();out[cur]=[];skip=true;return}
+  if(!cur)return;if(skip){skip=false;return}out[cur].push(r||[])});return out}
 function parseSched(v){return v.filter(r=>r.some(c=>String(c||"").trim())).map(r=>{const day=cell(r,0);
   return {day,date:parseLong(day),actual:/actual/i.test(day),label:day.replace(/\s*-\s*ACTUAL/i,"").replace(/,\s*\d{4}$/,""),time:cell(r,1),group:cell(r,2),activity:cell(r,3),notes:cell(r,4),script:cell(r,5)}})}
 const parseCadence=v=>v.filter(r=>cell(r,0)).map(r=>({attempt:cell(r,0),when:cell(r,1),channel:cell(r,2),action:cell(r,3),none:cell(r,4),yes:cell(r,5),no:cell(r,6)}));
@@ -289,12 +293,12 @@ async function load(){
   $("sync").textContent="Loading…";
   if(!S.mcp){try{S.mcp=(window.claude&&window.claude.use)?await window.claude.use("mcp"):null}catch(e){S.mcp=null}}
   if(!S.mcp){S.loaded=true;showBanner("This page reads your Master Lead/Activity Tracker sheet, so open it inside Claude (claude.ai) to see your data.");$("sync").textContent="Not connected";renderAll();return}
-  const jobs={tracker:getRange("Tracker!A2:L5000"),leads:getRange("'All Leads Master'!A2:K1100"),queue:getRange("'Call Lists'!A2:K1100"),sched:getRange("'Weekly Schedule'!A2:F80"),cadence:getRange("Cadence!A2:G40"),scripts:getRange("Scripts!A2:C60"),plan:getRange("'November 20k ALP Plan'!A2:B40"),leadsTab:getRange("Leads!A1:T2000")};
+  const jobs={tracker:getRange("Tracker!A2:L5000"),playbook:getRange("Playbook!A1:G200"),scripts:getRange("Scripts!A2:C60"),leadsTab:getRange("Leads!A1:T2000")};
   const keys=Object.keys(jobs), res=await Promise.allSettled(keys.map(k=>jobs[k]));
   S.err={};let bad=0,first=null;
   res.forEach((r,i)=>{const k=keys[i];if(r.status==="fulfilled"){const v=r.value;
-      if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="leads")S.leads=parseLeads(v);else if(k==="queue")S.queue=parseQueue(v);else if(k==="sched")S.sched=parseSched(v);else if(k==="cadence")S.cadence=parseCadence(v);else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="plan")S.plan=parsePlan(v);else if(k==="leadsTab")S.leadsRaw=parseLeadsTab(v);else S.stats=parseStats(v)}
-    else{S.err[k]=r.reason;bad++;first=first||r.reason}});
+      if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="playbook"){const P=playbookSections(v);S.sched=parseSched(P["weekly schedule"]||[]);S.cadence=parseCadence(P["cadence"]||[]);S.plan=parsePlan(P["monthly plan"]||[])}else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="leadsTab")S.leadsRaw=parseLeadsTab(v);else S.stats=parseStats(v)}
+    else{S.err[k]=r.reason;if(k==="playbook"){S.err.sched=S.err.cadence=S.err.plan=r.reason}bad++;first=first||r.reason}});
   // Use the Leads tab when it has leads; otherwise fall back to All Leads Master and Call Lists.
   S.leadsTab=Boolean(S.leadsRaw&&S.leadsRaw.length);if(S.leadsTab){S.leads=S.leadsRaw;S.queue=[]}
   S.loaded=true;S.at=new Date();
