@@ -334,7 +334,7 @@ function renderDashboard(){
     appts=S.tracker.filter(r=>r.type==="Appointment Set"&&!r.interview&&!r.canceled&&!r.outcome&&r.appt&&r.appt.slice(0,10)>=TODAY).sort((a,b)=>a.appt<b.appt?-1:1);
   const follow=S.leads.filter(l=>l.status==="Follow-up"), callBack=queueRows().filter(q=>/^call back first/i.test(q.step));
   const stepCounts={};queueRows().forEach(q=>stepCounts[q.step]=(stepCounts[q.step]||0)+1);
-  const steps=Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const steps=Object.entries(stepCounts).sort(S.leadsTab?byBlock:(a,b)=>b[1]-a[1]).slice(0,6);
   const remaining=WORKDAYS.filter(d=>d>=TODAY).length||1, todayRows=S.sched.filter(r=>r.date===TODAY);
   $("p-dashboard").innerHTML=
    sec("November: $20k ALP",`${fd(PLAN.weeks[0].start)} to ${fd(PLAN.weeks[3].end)} · ${remaining} working days left`,
@@ -360,6 +360,8 @@ function renderDashboard(){
    callQueue(steps,callBack)
 }
 
+const blockHour=b=>{const m=String(b).match(/(\d{1,2})(?::\d{2})?\s*-\s*\d{1,2}(?::\d{2})?\s*(AM|PM)/i);return m?(+m[1]%12)+(/pm/i.test(m[2])?12:0):99};
+const byBlock=(a,b)=>blockHour(a[0])-blockHour(b[0])||String(a[0]).localeCompare(String(b[0]));
 function callQueue(steps,callBack){
   const M=S.leadsTab?mergeLeads().filter(x=>x.stage!==""&&x.stage!==undefined):[];
   if(!M.length)return sec("Call queue",`${queueRows().length} on the call list${callBack.length?` · ${callBack.length} to call back first`:""}`,
@@ -369,7 +371,7 @@ function callQueue(steps,callBack){
   const blocks={};toCall.forEach(x=>{const b=x.block||"No call block";blocks[b]=(blocks[b]||0)+1});
   return sec("Call queue",`${toCall.length} to call · ${first.length} waiting for a first text${hot.length?` · ${hot.length} replied`:""}`,
     table(["Stage","Next step","Leads"],NEXT.map((n,i)=>tr([esc(i+" "+STAGES[i]),esc(n),M.filter(x=>x.stage===i).length],{left:[1]})),{left:[1]}))+
-   (toCall.length?sec("To call, by call block","stages 1 and 2",table(["Call block (Regina time)","Leads"],Object.entries(blocks).sort((a,b)=>b[1]-a[1]).map(([k,c])=>tr([esc(k),c])))):"")}
+   (toCall.length?sec("To call, by call block","stages 1 and 2",table(["Call block (Regina time)","Leads"],Object.entries(blocks).sort(byBlock).map(([k,c])=>tr([esc(k),c])))):"")}
 
 /* ---------- Nov 20k plan ---------- */
 function renderPlan(){
