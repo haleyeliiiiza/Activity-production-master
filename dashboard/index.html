@@ -396,7 +396,8 @@ function leadsFromTab(){const idx=new Map();
     if(r.type==="Call"){e.dials++;if(r.date>e.lastDial)e.lastDial=r.date;if(/call control/i.test(r.notes||""))e.cc=true}else{e.texts++;if(r.date>e.lastText)e.lastText=r.date}});
   return S.leads.map(l=>{const e=idx.get(dg10(l.phone))||{cc:false,dials:0,texts:0,lastDial:"",lastText:""},hd=lastIso(l.callDates),ht=lastIso(l.textDates);
     const b=parseInt(l.stage0,10);let st=Number.isNaN(b)?"":b;if(st!==""){if(st<2&&e.lastDial>=STAGE_BASE)st=2;else if(st===0&&e.lastText>=STAGE_BASE)st=1;if(l.status==="Booked"&&st<3)st=3;if(e.cc&&st<3)st=4}
-    return {...l,stage:st,dials:l.dials+e.dials,texts:l.texts+e.texts,lastDial:e.lastDial>hd?e.lastDial:hd,lastText:e.lastText>ht?e.lastText:ht}})}
+    const nx=st===""?null:(st===1||st===2?["","Call Attempt 1 on a call day","Follow-up text, then Call Attempts 2 and 3"][st]:"");
+    return {...l,stage:st,...(nx===null?{}:{inQueue:st===1||st===2,step:nx,next:nx,cohort:""}),dials:l.dials+e.dials,texts:l.texts+e.texts,lastDial:e.lastDial>hd?e.lastDial:hd,lastText:e.lastText>ht?e.lastText:ht}})}
 function mergeLeads(){if(S.leadsTab)return leadsFromTab();const map=new Map(),key=(ph,nm)=>dg10(ph).length>=7?dg10(ph):"n:"+String(nm||"").trim().toLowerCase();
   S.leads.forEach(l=>map.set(key(l.phone,l.name),{...l,inQueue:false,step:"",cohort:"",block:"",next:"",lastDial:lastIso(l.callDates),lastText:lastIso(l.textDates)}));
   S.queue.forEach(q=>{const k=key(q.phone,q.name);let m=map.get(k);
@@ -429,18 +430,18 @@ function renderLeads(){
   S.merged=mergeLeads();const M=S.merged,f=S.lf,inQ=M.filter(x=>x.inQueue);
   for(const k of ["status"])if(f[k]!=="all"&&!M.some(x=>x[k]===f[k]))f[k]="all";
   const sel=(id,label,all,vals,cur)=>`<select id="${id}" aria-label="${label}"><option value="all">${all}</option>${vals.map(v=>`<option${cur===v?" selected":""}>${esc(v)}</option>`).join("")}</select>`;
-  const cnt=st=>M.filter(x=>(x.status||"Untouched")===st).length, stepCounts={};inQ.forEach(x=>stepCounts[x.step||"No next step"]=(stepCounts[x.step||"No next step"]||0)+1);
+  const cnt=st=>M.filter(x=>(x.status||"Untouched")===st).length, stepCounts={};inQ.forEach(x=>{const k=S.leadsTab?(x.block||"No call block"):(x.step||"No next step");stepCounts[k]=(stepCounts[k]||0)+1});
   const byType=uniq(M.map(x=>x.type)).map(t=>{const L=M.filter(l=>l.type===t),bk=L.filter(l=>l.status==="Booked").length;return tr([esc(t),L.length,L.filter(l=>l.inQueue).length,L.reduce((a,l)=>a+l.dials,0),L.reduce((a,l)=>a+l.texts,0),bk,L.filter(l=>l.status==="Follow-up").length,pct(bk,L.length)])});
   const statusOpts=[["all","Any status"],...STATUS.map(s=>[s[0],s[0]])];
   $("p-leads").innerHTML=srcNote("leads","queue")+
-   sec("Leads",`${M.length} leads · ${inQ.length} on the call list`,M.length?`<div class="kpis">${kpi("Leads",M.length,S.leadsTab?"from the Leads tab":"All Leads Master and Call Lists")}${kpi("On call list",inQ.length,pct(inQ.length,M.length)+" of leads")}${kpi("Booked",cnt("Booked"),pct(cnt("Booked"),M.length))}${kpi("Follow-up",cnt("Follow-up"),"replied or talked")}${kpi("Untouched",cnt("Untouched"),"no outcome yet")}</div>`+pipeline(M):empty("No leads loaded.","The All Leads Master and Call Lists tabs had no rows."))+
+   sec("Leads",`${M.length} leads · ${inQ.length} ${S.leadsTab?"to call (stages 1 and 2)":"on the call list"}`,M.length?`<div class="kpis">${kpi("Leads",M.length,S.leadsTab?"from the Leads tab":"All Leads Master and Call Lists")}${kpi(S.leadsTab?"To call":"On call list",inQ.length,pct(inQ.length,M.length)+" of leads")}${kpi("Booked",cnt("Booked"),pct(cnt("Booked"),M.length))}${kpi("Follow-up",cnt("Follow-up"),"replied or talked")}${kpi("Untouched",cnt("Untouched"),"no outcome yet")}</div>`+pipeline(M):empty("No leads loaded.","The All Leads Master and Call Lists tabs had no rows."))+
    (M.length&&S.leadsTab?sec("Stages","where every lead is now",`<div class="kpis">${STAGES.map((n,i)=>kpi(i+" "+n,M.filter(x=>x.stage===i).length,"")).join("")}</div>`):"")+
    (M.length?sec("By lead type","",table(["Type","Leads","On list","Dials","Texts","Booked","Follow-up","Booked %"],byType))+
-    (inQ.length?sec("Call list by next step","",table(["Next step","Leads"],Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).map(([k,c])=>tr([esc(k),c])))):"")+
+    (inQ.length?sec(S.leadsTab?"Call list by call block":"Call list by next step","",table([S.leadsTab?"Call block (Regina time)":"Next step","Leads"],Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).map(([k,c])=>tr([esc(k),c])))):"")+
     sec("Lead list","",`<div class="row"><div class="seg" role="group" aria-label="List"><button data-lv="all" aria-pressed="${f.view==="all"}">All leads</button><button data-lv="call" aria-pressed="${f.view==="call"}">Call list</button></div></div>
      <div class="row">${S.leadsTab?sel("lf-stage","Stage","All stages",STAGES.map((n,i)=>i+" "+n),f.stage):""}${sel("lf-inbox","Lead inbox","All inboxes",uniq(M.map(x=>x.inbox)),f.inbox)}${sel("lf-type","Lead type","All types",uniq(M.map(x=>x.type)),f.type)}${sel("lf-prov","Province","All provinces",uniq(M.map(x=>x.prov)),f.prov)}
      <select id="lf-status" aria-label="Status">${statusOpts.map(([v,t])=>`<option value="${esc(v)}"${f.status===v?" selected":""}>${esc(t)}</option>`).join("")}</select>
-     ${f.view==="call"?sel("lf-step","Next step","Any next step",uniq(inQ.map(x=>x.step)),f.step)+sel("lf-cohort","Cohort","All cohorts",uniq(inQ.map(x=>x.cohort)),f.cohort)+sel("lf-block","Best call block","Any call block",uniq(inQ.map(x=>x.block)),f.block):""}
+     ${f.view==="call"?sel("lf-step","Next step","Any next step",uniq(inQ.map(x=>x.step)),f.step)+(S.leadsTab?"":sel("lf-cohort","Cohort","All cohorts",uniq(inQ.map(x=>x.cohort)),f.cohort))+sel("lf-block","Best call block","Any call block",uniq(inQ.map(x=>x.block)),f.block):""}
      <select id="lf-sort" aria-label="Sort leads">${SORTS_L.map(([v,t])=>`<option value="${v}"${f.sort===v?" selected":""}>${t}</option>`).join("")}</select></div>
      <input id="lf-q" type="search" placeholder="Search name, phone or notes" value="${esc(f.q)}" aria-label="Search leads"><div id="lead-results">${leadResults()}</div>`):"")}
 
