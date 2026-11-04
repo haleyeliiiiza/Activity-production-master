@@ -65,3 +65,9 @@ Call control: a lead whose call is dispositioned Call Control is treated as Stag
 ## Weekly schedule planner
 
 Every Sunday at 6 PM Regina time the planner reads your Google Calendar for the coming Monday to Saturday, treats every event as busy (plus a buffer), and fits call blocks into the free time inside the lead call blocks (ON Will Kit, ON other / AB / SK, BC). It caps calling at the daily and weekly hours in Text Settings (`Plan:` rows), writes the plan to the `## Weekly schedule` section at the bottom of the Playbook tab, adds each call block to the calendar as a free (not busy) event described with `[Planner]` so Calendly can still book you, and emails the week. Re-running replaces the previous run's calendar events. Text days (`First text days`) get approval reminders instead of call blocks. To plan on demand, open the `plan-week` webhook (add `?start=YYYY-MM-DD` for a specific week).
+
+Plan on demand: `plan-week` accepts `?start=YYYY-MM-DD` (any day in the week), `&weeks=2` (up to 4 weeks) and `&from=YYYY-MM-DD` (skip days before this date; defaults to today). Each run replaces the schedule section and the planner's calendar events.
+
+## Daily call list email
+
+Monday to Saturday at 7:30 AM Regina time the `Daily Call List Time` trigger emails today's plan (read from the Playbook schedule, including presentations) and a call list for each planned call block: Stage 1 and 2 leads whose Best Call Block matches, replies first, then Stage 1, then the longest since their last dial, up to 25 per block, with dials, progress toward the next text and the lead's reply. Missed presentations (Stage 4) are listed for one reschedule call; opt-outs and call control leads are left out. Open `daily-list` (with an optional `?date=YYYY-MM-DD`) to send it on demand.
