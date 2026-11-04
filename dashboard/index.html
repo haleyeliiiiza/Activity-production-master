@@ -248,7 +248,7 @@ function parseLeadsTab(v){if(!v||v.length<2)return [];
   return v.slice(1).filter(r=>g(r,"Name")||g(r,"Phone")).map(r=>{const outcome=g(r,"Outcome"),next=g(r,"Next Step"),notes=g(r,"Notes"),step=next.split(/ - | – /)[0].trim();
     return {inbox:g(r,"Lead Inbox"),type:g(r,"Lead Type"),name:g(r,"Name"),phone:g(r,"Phone"),prov:g(r,"Province"),email:g(r,"Email"),sponsor:g(r,"Sponsor"),beneficiary:g(r,"Beneficiary"),added:g(r,"Date Added"),
       outcome,notes,next,step,cohort:g(r,"Cohort"),block:g(r,"Best Call Block"),pres:parseDate(g(r,"Presentation Date"),2026),dials:num(g(r,"Dials (history)")),texts:num(g(r,"Texts (history)")),
-      stage0:g(r,"Stage"),callDates:g(r,"Call Dates (history)"),textDates:g(r,"Text Dates (history)"),status:/booked/i.test(step)?"Booked":statusOf(outcome||notes),inQueue:Boolean(next)}})}
+      stage0:g(r,"Stage"),callDates:g(r,"Call Dates (history)"),textDates:g(r,"Text Dates (history)"),status:/no.?show|cancel|so show/i.test(g(r,"Presentation Date"))?"Missed":/booked/i.test(step)?"Booked":statusOf(outcome||notes),inQueue:Boolean(next)}})}
 const queueRows=()=>S.leadsTab?S.leads.filter(l=>l.inQueue):S.queue;
 const SK=["dials","conn","texts","replies","made","shown","noshow","pres","sales","alp"];
 function parseStats(v){if(!v.length)return null;const h=(v[0]||[]).map(x=>String(x||""));
@@ -310,7 +310,7 @@ const empty=(t,b)=>`<div class="empty"><b>${t}</b><br>${b}</div>`;
 function table(heads,rows,o){o=o||{};
   return `<div class="tablewrap"><table><thead><tr>${heads.map((h,i)=>`<th${i===0||(o.left||[]).includes(i)?' class="l"':""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`}
 const tr=(cells,o)=>`<tr${o&&o.total?' class="total"':""}>${cells.map((c,i)=>`<td class="${i===0||(o&&o.left&&o.left.includes(i))?"l":""}${o&&o.wrap&&o.wrap.includes(i)?" wrap-t":""}">${c}</td>`).join("")}</tr>`;
-const STATUS=[["Booked","#1B3A2B"],["Follow-up","#B8934A"],["No answer","#6F8F72"],["Not interested","#B77C72"],["Unreachable","#A9B2AC"],["Untouched","#DDE5DE"]];
+const STATUS=[["Booked","#1B3A2B"],["Follow-up","#B8934A"],["Missed","#C9A27A"],["No answer","#6F8F72"],["Not interested","#B77C72"],["Unreachable","#A9B2AC"],["Untouched","#DDE5DE"]];
 const statusChip=s=>`<span class="chip ${s==="Booked"?"booked":s==="Follow-up"?"follow":s==="Not interested"?"ni":""}">${esc(s)}</span>`;
 function pipeline(leads){const c={};STATUS.forEach(([s])=>c[s]=0);leads.forEach(l=>c[l.status]=(c[l.status]||0)+1);const tot=leads.length||1;
   return `<div class="meter" role="img" aria-label="Lead status mix">${STATUS.map(([s,col])=>c[s]?`<i style="width:${c[s]/tot*100}%;background:${col}" title="${esc(s)}: ${c[s]}"></i>`:"").join("")}</div>
@@ -393,14 +393,16 @@ const dg10=x=>String(x||"").replace(/\D/g,"").slice(-10);
 const lastIso=s=>{const d=[...String(s||"").matchAll(/(\d{1,2})\/(\d{1,2})\/(\d{4})/g)].map(m=>iso(m[3],+m[1],+m[2])).sort();return d.length?d[d.length-1]:""};
 const STAGE_BASE="2026-11-02",STAGES=["Not contacted","Text sent","Called","Presented / Booked","Closed"];
 const stageName=s=>s===""||s==null?"":s+" "+STAGES[s];
-function leadsFromTab(){const idx=new Map();
+function leadsFromTab(){const idx=new Map(),nos=new Set();
+  S.tracker.forEach(r=>{if(r.type==="No-Show"&&r.date>=STAGE_BASE){const k=dg10(r.phone);if(k.length>=7)nos.add(k)}});
   S.tracker.forEach(r=>{if(r.date<=HISTORY_END||(r.type!=="Call"&&r.type!=="Text"))return;const k=dg10(r.phone);if(k.length<7)return;
     let e=idx.get(k);if(!e){e={cc:false,dials:0,texts:0,lastDial:"",lastText:""};idx.set(k,e)}
     if(r.type==="Call"){e.dials++;if(r.date>e.lastDial)e.lastDial=r.date;if(/call control/i.test(r.notes||""))e.cc=true}else{e.texts++;if(r.date>e.lastText)e.lastText=r.date}});
   return S.leads.map(l=>{const e=idx.get(dg10(l.phone))||{cc:false,dials:0,texts:0,lastDial:"",lastText:""},hd=lastIso(l.callDates),ht=lastIso(l.textDates);
     const b=parseInt(l.stage0,10);let st=Number.isNaN(b)?"":b;if(st!==""){if(st<2&&e.lastDial>=STAGE_BASE)st=2;else if(st===0&&e.lastText>=STAGE_BASE)st=1;if(l.status==="Booked"&&st<3)st=3;if(e.cc&&st<3)st=4}
+    const ns=nos.has(dg10(l.phone));if(ns&&st===3)st=2;
     const nx=st===""?null:(st===1||st===2?["","Call Attempt 1 on a call day","Follow-up text, then Call Attempts 2 and 3"][st]:"");
-    return {...l,stage:st,...(nx===null?{}:{inQueue:st===1||st===2,step:nx,next:nx,cohort:""}),dials:l.dials+e.dials,texts:l.texts+e.texts,lastDial:e.lastDial>hd?e.lastDial:hd,lastText:e.lastText>ht?e.lastText:ht}})}
+    return {...l,status:ns&&l.status==="Booked"?"Missed":l.status,stage:st,...(nx===null?{}:{inQueue:st===1||st===2,step:nx,next:nx,cohort:""}),dials:l.dials+e.dials,texts:l.texts+e.texts,lastDial:e.lastDial>hd?e.lastDial:hd,lastText:e.lastText>ht?e.lastText:ht}})}
 function mergeLeads(){if(S.leadsTab)return leadsFromTab();const map=new Map(),key=(ph,nm)=>dg10(ph).length>=7?dg10(ph):"n:"+String(nm||"").trim().toLowerCase();
   S.leads.forEach(l=>map.set(key(l.phone,l.name),{...l,inQueue:false,step:"",cohort:"",block:"",next:"",lastDial:lastIso(l.callDates),lastText:lastIso(l.textDates)}));
   S.queue.forEach(q=>{const k=key(q.phone,q.name);let m=map.get(k);
