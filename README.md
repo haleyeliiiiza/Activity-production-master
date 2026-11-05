@@ -15,3 +15,6 @@ Planning and tracking for life insurance sales production.
 
 ### Plan defaults (editable on the dashboard)
 $1,000 average ALP · 10% close rate · 47% show rate · 21 dials per conversation · 1 booking per conversation · Mon–Sat (25 workdays).
+
+### History
+The full setup conversation (decisions, IDs, open items) is in `docs/chat-log-2026-10-31.md`.
