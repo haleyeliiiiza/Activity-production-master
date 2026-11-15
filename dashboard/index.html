@@ -442,18 +442,18 @@ function leadResults(){const f=S.lf, rows=sortLeads(leadFilter(),f.sort), shown=
 function renderLeads(){
   S.merged=mergeLeads();const M=S.merged,f=S.lf,inQ=M.filter(x=>x.inQueue);
   for(const k of ["status"])if(f[k]!=="all"&&!M.some(x=>x[k]===f[k]))f[k]="all";
+  const typeSel=`<select id="lf-type" aria-label="Lead type"><option value="all">All types (${M.length})</option>${uniq(M.map(x=>x.type)).map(t=>`<option value="${esc(t)}"${f.type===t?" selected":""}>${esc(t)} (${M.filter(x=>x.type===t).length})</option>`).join("")}</select>`;
   const stageSel=`<select id="lf-stage" aria-label="Stage"><option value="all">All stages (${M.length})</option>${STAGES.map((n,i)=>{const v=i+" "+n;return `<option value="${esc(v)}"${S.lf.stage===v?" selected":""}>${esc(v)} (${M.filter(x=>x.stage===i).length})</option>`}).join("")}</select>`;
   const sel=(id,label,all,vals,cur)=>`<select id="${id}" aria-label="${label}"><option value="all">${all}</option>${vals.map(v=>`<option${cur===v?" selected":""}>${esc(v)}</option>`).join("")}</select>`;
   const cnt=st=>M.filter(x=>(x.status||"Untouched")===st).length, stepCounts={};inQ.forEach(x=>{const k=S.leadsTab?(x.block||"No call block"):(x.step||"No next step");stepCounts[k]=(stepCounts[k]||0)+1});
   const typeList=uniq(M.map(x=>x.type)), shortType=t=>/mcgruff/i.test(t)?"McGruff":t, bkOf=L=>L.filter(l=>l.status==="Booked").length;
   const typeMetrics=[["Leads",L=>L.length],["On list",L=>L.filter(l=>l.inQueue).length],["Dials",L=>L.reduce((a,l)=>a+l.dials,0)],["Texts",L=>L.reduce((a,l)=>a+l.texts,0)],["Booked",bkOf],["Follow-up",L=>L.filter(l=>l.status==="Follow-up").length],["Booked %",L=>pct(bkOf(L),L.length)]];
   const byType=typeMetrics.map(([lab,fn])=>tr([lab,...typeList.map(t=>fn(M.filter(l=>l.type===t)))]));
-  const statusOpts=[["all","Any status"],...STATUS.map(s=>[s[0],s[0]])];
+  const statusOpts=[["all",`Any status (${M.length})`],...STATUS.map(s=>[s[0],`${s[0]} (${cnt(s[0])})`])];
   $("p-leads").innerHTML=srcNote("leads","queue")+
-   (M.length?sec("By lead type","",table(["",...typeList.map(shortType)],byType))+
-    (inQ.length?sec(S.leadsTab?"Call list by call block":"Call list by next step","",table([S.leadsTab?"Call block (Regina time)":"Next step","Leads"],Object.entries(stepCounts).sort((a,b)=>b[1]-a[1]).map(([k,c])=>tr([esc(k),c])))):"")+
+   (M.length?""+
     sec("Lead list","",`<div class="row"><div class="seg" role="group" aria-label="List"><button data-lv="all" aria-pressed="${f.view==="all"}">All leads</button><button data-lv="call" aria-pressed="${f.view==="call"}">Call list</button></div></div>
-     <div class="row">${S.leadsTab?stageSel:""}${sel("lf-inbox","Lead inbox","All inboxes",uniq(M.map(x=>x.inbox)),f.inbox)}${sel("lf-type","Lead type","All types",uniq(M.map(x=>x.type)),f.type)}${sel("lf-prov","Province","All provinces",uniq(M.map(x=>x.prov)),f.prov)}
+     <div class="row">${S.leadsTab?stageSel:""}${sel("lf-inbox","Lead inbox","All inboxes",uniq(M.map(x=>x.inbox)),f.inbox)}${typeSel}${sel("lf-prov","Province","All provinces",uniq(M.map(x=>x.prov)),f.prov)}
      <select id="lf-status" aria-label="Status">${statusOpts.map(([v,t])=>`<option value="${esc(v)}"${f.status===v?" selected":""}>${esc(t)}</option>`).join("")}</select>
      ${f.view==="call"?sel("lf-step","Next step","Any next step",uniq(inQ.map(x=>x.step)),f.step)+(S.leadsTab?"":sel("lf-cohort","Cohort","All cohorts",uniq(inQ.map(x=>x.cohort)),f.cohort))+sel("lf-block","Best call block","Any call block",uniq(inQ.map(x=>x.block)),f.block):""}
      <select id="lf-sort" aria-label="Sort leads">${SORTS_L.map(([v,t])=>`<option value="${v}"${f.sort===v?" selected":""}>${t}</option>`).join("")}</select></div>
