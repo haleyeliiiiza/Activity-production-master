@@ -252,7 +252,14 @@ const parseCadence=v=>v.filter(r=>cell(r,0)).map(r=>({attempt:cell(r,0),when:cel
 // These plan rows are left out of the page (they stay on the sheet).
 const HIDE_PLAN=/^(close rate|risk \/ note|new tracker in november|daily contact pace|if presentation rate is lower|lead pool|total check|daily tracking|sprint)/i;
 const parsePlan=v=>v.filter(r=>cell(r,0)&&!HIDE_PLAN.test(cell(r,0))).map(r=>({label:cell(r,0),detail:cell(r,1)}));
-const parseScripts=v=>v.filter(r=>cell(r,0)).map(r=>({name:cell(r,0),use:cell(r,1),text:cell(r,2)}));
+// The McGruff presentation is kept as numbered sections on the Scripts tab; show them as one script, in order.
+const mergeMcgruff=list=>{const re=/^call script - mcgruff presentation\s+(\d+)\s*(?:\((.*)\))?\s*$/i,parts=list.map((x,i)=>({x,i,m:x.name.match(re)})).filter(o=>o.m);
+  if(parts.length<2)return list;
+  const ordered=[...parts].sort((a,b)=>+a.m[1]-+b.m[1]);
+  const merged={name:"Call script - McGruff presentation (all "+ordered.length+" sections)",use:"The full McGruff presentation in order, from the intro to the close. Source: McGruff Presentation doc.",text:ordered.map(o=>"PART "+o.m[1]+(o.m[2]?": "+o.m[2]:"")+"\n\n"+o.x.text).join("\n\n\n")};
+  const first=parts[0].i,drop=new Set(parts.map(o=>o.i));
+  return list.flatMap((x,i)=>i===first?[merged]:drop.has(i)?[]:[x])};
+const parseScripts=v=>mergeMcgruff(v.filter(r=>cell(r,0)).map(r=>({name:cell(r,0),use:cell(r,1),text:cell(r,2)})));
 function parseLeadsTab(v){if(!v||v.length<2)return [];
   const h=(v[0]||[]).map(x=>String(x||"").replace(/\s+/g," ").trim().toLowerCase()),g=(r,n)=>{const i=h.indexOf(n.toLowerCase());return i<0?"":String(r[i]??"").trim()};
   return v.slice(1).filter(r=>g(r,"Name")||g(r,"Phone")).map(r=>{const outcome=g(r,"Outcome"),next=g(r,"Next Step"),notes=g(r,"Notes"),step=next.split(/ - | – /)[0].trim();
