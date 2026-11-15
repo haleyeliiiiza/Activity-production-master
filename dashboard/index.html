@@ -383,6 +383,8 @@ function callQueue(steps,callBack){
    (toCall.length?sec("To call, by call block","stages 1 and 2",table(["Call block (Regina time)","Leads"],Object.entries(blocks).sort(byBlock).map(([k,c])=>tr([esc(k),c])))):"")}
 
 /* ---------- Nov 20k plan ---------- */
+const noteHtml=n=>{const parts=n.day.length>80?[n.day]:[n.time,n.group,n.activity,n.notes].filter(Boolean);return `<div class="nt"><h3>${n.day.length>80?"Note":esc(n.day)}</h3>${parts.map(x=>`<p>${esc(x)}</p>`).join("")}</div>`};
+const schedNotes=()=>S.sched.filter(r=>!r.date&&r.day!=="Note");
 function renderPlan(){
   const N=nov(), pres=N.pres||N.presFromStats, remaining=WORKDAYS.filter(d=>d>=TODAY).length||1;
   const weeks=S.plan.filter(r=>/^week plan/i.test(r.label));
@@ -393,7 +395,7 @@ function renderPlan(){
   $("p-plan").innerHTML=srcNote("plan","tracker")+
    sec("ALP Goal: 20K",`${money(PLAN.goal)} · ${PLAN.sales} sales · ${PLAN.pres} presentations`,
      `<div class="kpis">${kpi("ALP so far",money(N.alp),`${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day for ${remaining} working days`,N.alp/PLAN.goal)}${kpi("Sales",N.apps.length,`of ${PLAN.sales}`,N.apps.length/PLAN.sales)}${kpi("Presentations",pres,`of ${PLAN.pres}`,pres/PLAN.pres)}${kpi("Close rate",pres?pct(N.apps.length,pres):"—","plan "+Math.round(PLAN.close*100)+"%")}</div>`)+
-   (S.plan.length?(weeks.length?weekTable():"")+blocks:sec("Plan","",empty("The plan tab is empty.","Add the goal and weekly targets to the November 20k ALP Plan tab.")))}
+   (S.plan.length?(weeks.length?weekTable():"")+blocks:sec("Plan","",empty("The plan tab is empty.","Add the goal and weekly targets to the November 20k ALP Plan tab.")))+(schedNotes().length?sec("Notes","",schedNotes().map(noteHtml).join("")):"")}
 
 /* ---------- Leads: All Leads Master joined with the Call Lists tab by phone number ---------- */
 const uniq=a=>[...new Set(a.filter(Boolean))].sort();
@@ -464,15 +466,13 @@ function renderLeads(){
 function renderSchedule(){
   const rows=S.sched,f=S.sf,days=[];
   rows.filter(r=>r.date).forEach(r=>{let d=days[days.length-1];if(!d||d.date!==r.date){d={date:r.date,label:r.label,actual:r.actual,rows:[]};days.push(d)}d.rows.push(r)});
-  const notes=rows.filter(r=>!r.date&&r.day!=="Note"), vis=f.view==="all"?days:days.filter(d=>d.date>=TODAY);
+  const vis=f.view==="all"?days:days.filter(d=>d.date>=TODAY);
   const dayHtml=d=>`<div class="day"><div class="dh"><h2>${esc(d.label)}</h2>${d.date===TODAY?'<span class="chip booked">Today</span>':d.actual?'<span class="chip">Logged</span>':d.date<TODAY?'<span class="chip">Past</span>':""}</div>`+
     d.rows.map(r=>`<div class="srow"><div class="stime">${esc(r.time)}</div><div><div class="p">${esc(r.activity)}</div><div class="m">${esc(r.group)}</div>${r.notes?`<div class="snote">${esc(r.notes)}</div>`:""}${r.script?`<div style="margin-top:8px"><button class="chip booked" data-tab="scripts">Script: ${esc(r.script)}</button></div>`:""}</div></div>`).join("")+`</div>`;
-  const noteHtml=n=>{const parts=n.day.length>80?[n.day]:[n.time,n.group,n.activity,n.notes].filter(Boolean);return `<div class="nt"><h3>${n.day.length>80?"Note":esc(n.day)}</h3>${parts.map(x=>`<p>${esc(x)}</p>`).join("")}</div>`};
   $("p-schedule").innerHTML=srcNote("sched")+
    sec("Weekly schedule",days.length?`${fd(days[0].date)} to ${fd(days[days.length-1].date)}`:"",
      `<div class="seg" role="group" aria-label="Days"><button data-sv="upcoming" aria-pressed="${f.view==="upcoming"}">From today</button><button data-sv="all" aria-pressed="${f.view==="all"}">All days</button></div>`+
-     (vis.length?vis.map(dayHtml).join(""):empty(days.length?"Nothing scheduled from today.":"The schedule is empty.",days.length?"Switch to All days to see earlier entries.":"Add rows to the Weekly Schedule tab.")))+
-   (notes.length?sec("Notes","",notes.map(noteHtml).join("")):"")}
+     (vis.length?vis.map(dayHtml).join(""):empty(days.length?"Nothing scheduled from today.":"The schedule is empty.",days.length?"Switch to All days to see earlier entries.":"Add rows to the Weekly Schedule tab.")))}
 
 /* ---------- Cadence ---------- */
 function renderCadence(){
