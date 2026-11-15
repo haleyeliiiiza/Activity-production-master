@@ -352,12 +352,11 @@ function renderDashboard(){
   const steps=Object.entries(stepCounts).sort(S.leadsTab?byBlock:(a,b)=>b[1]-a[1]).slice(0,6);
   const remaining=WORKDAYS.filter(d=>d>=TODAY).length||1, todayRows=S.sched.filter(r=>r.date===TODAY);
   $("p-dashboard").innerHTML=
-   sec("November: $20k ALP",`${fd(PLAN.weeks[0].start)} to ${fd(PLAN.weeks[3].end)} · ${remaining} working days left`,
-     `<div class="kpis">${kpi("ALP submitted",money(N.alp),`of ${money(PLAN.goal)} · ${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day to go`,N.alp/PLAN.goal)}
+   `<div class="sec"><div class="kpis">${kpi("Dials / Texts",st?`${st.dials.toLocaleString("en-CA")} / ${st.texts.toLocaleString("en-CA")}`:"—",st?`${MONTH_NAME} to date${st.src?" · from Kixie":""} · ${pct(st.conn,st.dials)} reach someone`:"")}
+       ${kpi("Booked",st?st.made:"—",st?`${MONTH_NAME} to date${st.bookSrc?" · from Calendly":""} · ${pct(st.shown,st.made)} showed up`:"")}
        ${kpi("Presentations",pres,`of ${PLAN.pres} planned${N.pres?"":N.presFromStats?" · bookings shown":""}`,pres/PLAN.pres)}
        ${kpi("Sales",N.apps.length,`of ${PLAN.sales} planned`,N.apps.length/PLAN.sales)}
-       ${kpi("Dials",st?st.dials.toLocaleString("en-CA"):"—",st?`${MONTH_NAME}${st.src?" · from Kixie":""} · ${pct(st.conn,st.dials)} reach someone`:"")}
-       ${kpi("Bookings",st?st.made:"—",st?`${MONTH_NAME}${st.bookSrc?" · from Calendly":""} · ${pct(st.shown,st.made)} showed up`:"")}</div>`+srcNote("tracker","stats"))+
+       ${kpi("ALP submitted",money(N.alp),`of ${money(PLAN.goal)} · ${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day to go`,N.alp/PLAN.goal)}</div></div>`+srcNote("tracker","stats")+
    (todayRows.length?sec("Today",fd(TODAY),`<div class="list">${todayRows.map(r=>`<div class="item" style="grid-template-columns:minmax(0,1fr)"><span><span class="p">${esc(r.activity)}</span><br><span class="m">${esc(r.time)}${r.group?" · "+esc(r.group):""}</span></span></div>`).join("")}</div>`):"")+
    (pending.length?sec("Needs an outcome",`${pending.length} past ${pending.length===1?"appointment":"appointments"}`,`<div class="list">${pending.slice(0,8).map(r=>`<div class="item" style="grid-template-columns:96px minmax(0,1fr) auto"><span class="d">${fd(r.appt.slice(0,10))}<br>${esc(apptTime(r.appt))}</span><span class="p">${esc(r.name)}</span>${r.bid?`<a class="lnk" href="${OUTCOME_URL}${encodeURIComponent(r.bid)}" target="_blank" rel="noopener">Held or no-show</a>`:`<span class="dim">log it on the form</span>`}</div>`).join("")}</div>`):"")+
    sec("This week",esc(wk.label),
