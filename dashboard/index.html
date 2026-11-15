@@ -361,15 +361,10 @@ function renderDashboard(){
    (pending.length?sec("Needs an outcome",`${pending.length} past ${pending.length===1?"appointment":"appointments"}`,`<div class="list">${pending.slice(0,8).map(r=>`<div class="item" style="grid-template-columns:96px minmax(0,1fr) auto"><span class="d">${fd(r.appt.slice(0,10))}<br>${esc(apptTime(r.appt))}</span><span class="p">${esc(r.name)}</span>${r.bid?`<a class="lnk" href="${OUTCOME_URL}${encodeURIComponent(r.bid)}" target="_blank" rel="noopener">Held or no-show</a>`:`<span class="dim">log it on the form</span>`}</div>`).join("")}</div>`):"")+
    sec("This week",esc(wk.label),
      table(["","Plan","So far"],[tr(["Presentations",wk.pres,wn.pres]),tr(["Sales",wk.sales,wn.sales]),tr(["ALP",money(PLAN.avg*wk.sales),money(wn.alp)])]))+
-   `<div class="two">`+
    sec("Next presentations",appts.length?`${appts.length} booked`:up.length?`${up.length} booked · from All Leads Master`:"",
      appts.length?`<div class="list">${appts.slice(0,7).map(r=>`<div class="item" style="grid-template-columns:96px minmax(0,1fr) auto"><span class="d">${fd(r.appt.slice(0,10))}<br>${esc(apptTime(r.appt))}</span><span class="p">${esc(r.name)}</span><span class="m">${esc(r.notes)}</span></div>`).join("")}</div>`
      :up.length?`<div class="list">${up.slice(0,7).map(l=>`<div class="item"><span class="d">${fd(l.pres)}</span><span class="p">${esc(l.name)}</span><span class="m">${esc(l.type)}</span></div>`).join("")}</div>`
-       :empty("Nothing booked yet.","Calendly bookings show up here with their time. Cancellations drop off."))+
-   sec("Needs a follow-up",`${follow.length} ${follow.length===1?"lead":"leads"} replied`,
-     follow.length?`<div class="list">${follow.slice(0,6).map(l=>`<div class="item" style="grid-template-columns:minmax(0,1fr) auto"><span><span class="p">${esc(l.name)}</span><br><span class="m">${esc(l.outcome.split(";")[0])}</span></span>${statusChip(l.type)}</div>`).join("")}</div>`
-       :empty("No replies waiting.","Leads that texted back or talked to you show up here."))+
-   `</div>`
+       :empty("Nothing booked yet.","Calendly bookings show up here with their time. Cancellations drop off."))
 }
 
 const blockHour=b=>{const m=String(b).match(/(\d{1,2})(?::\d{2})?\s*-\s*\d{1,2}(?::\d{2})?\s*(AM|PM)/i);return m?(+m[1]%12)+(/pm/i.test(m[2])?12:0):99};
