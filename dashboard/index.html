@@ -55,6 +55,7 @@ select,input{font:500 14px var(--f-ui);color:var(--ink);background:#fff;border:1
 .kpi .v{font:600 30px/1.05 var(--f-display);color:var(--forest);font-variant-numeric:lining-nums tabular-nums;margin-top:4px;overflow-wrap:anywhere}
 .kpi .s{font-size:12.5px;color:var(--muted);margin-top:2px}
 .kpi .bar{height:5px;background:var(--mist);border-radius:3px;margin-top:8px;overflow:hidden}
+.sprint{margin:6px 0 0;padding-left:18px;line-height:1.55}.sprint li{margin:4px 0}
 .kpi .bar i{display:block;height:100%;background:var(--green);border-radius:3px}
 @media (min-width:720px){.kpis{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}.kpi,.kpi:nth-child(even),.kpi:nth-child(n+3){padding:14px;border-top:0;border-left:1px solid var(--line)}.kpi:first-child{padding-left:0;border-left:0}.kpi:last-child:nth-child(odd){grid-column:auto}}
 
@@ -248,7 +249,7 @@ function parseSched(v){return v.filter(r=>r.some(c=>String(c||"").trim())).map(r
   return {day,date:parseLong(day),actual:/actual/i.test(day),label:day.replace(/\s*-\s*ACTUAL/i,"").replace(/,\s*\d{4}$/,""),time:cell(r,1),group:cell(r,2),activity:cell(r,3),notes:cell(r,4),script:cell(r,5)}})}
 const parseCadence=v=>v.filter(r=>cell(r,0)).map(r=>({attempt:cell(r,0),when:cell(r,1),channel:cell(r,2),action:cell(r,3),none:cell(r,4),yes:cell(r,5),no:cell(r,6)}));
 // These plan rows are left out of the page (they stay on the sheet).
-const HIDE_PLAN=/^(close rate|risk \/ note|new tracker in november|daily contact pace|if presentation rate is lower|lead pool|total check|daily tracking)/i;
+const HIDE_PLAN=/^(close rate|risk \/ note|new tracker in november|daily contact pace|if presentation rate is lower|lead pool|total check|daily tracking|sprint)/i;
 const parsePlan=v=>v.filter(r=>cell(r,0)&&!HIDE_PLAN.test(cell(r,0))).map(r=>({label:cell(r,0),detail:cell(r,1)}));
 const parseScripts=v=>v.filter(r=>cell(r,0)).map(r=>({name:cell(r,0),use:cell(r,1),text:cell(r,2)}));
 function parseLeadsTab(v){if(!v||v.length<2)return [];
@@ -303,7 +304,7 @@ async function load(){
   const keys=Object.keys(jobs), res=await Promise.allSettled(keys.map(k=>jobs[k]));
   S.err={};let bad=0,first=null;
   res.forEach((r,i)=>{const k=keys[i];if(r.status==="fulfilled"){const v=r.value;
-      if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="playbook"){const P=playbookSections(v);S.sched=parseSched(P["weekly schedule"]||[]);S.cadence=parseCadence(P["cadence"]||[]);S.plan=parsePlan(P["monthly plan"]||[])}else if(k==="powerLists"){S.leadLists=new Set(v.filter(r=>String(r[0]||"").trim()&&/^leads$/i.test(String(r[2]||"").trim())).map(r=>String(r[0]).trim()))}else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="leadsTab")S.leadsRaw=parseLeadsTab(v);else S.stats=parseStats(v)}
+      if(k==="tracker")S.tracker=markOutcome(markCanceled(parseTracker(v)));else if(k==="playbook"){const P=playbookSections(v);S.sched=parseSched(P["weekly schedule"]||[]);S.cadence=parseCadence(P["cadence"]||[]);S.plan=parsePlan(P["monthly plan"]||[]);{const sr=(P["monthly plan"]||[]).find(r=>/^sprint/i.test(cell(r,0)));S.sprint=sr?{label:cell(sr,0),detail:cell(sr,1)}:null}}else if(k==="powerLists"){S.leadLists=new Set(v.filter(r=>String(r[0]||"").trim()&&/^leads$/i.test(String(r[2]||"").trim())).map(r=>String(r[0]).trim()))}else if(k==="scripts")S.scripts=parseScripts(v);else if(k==="leadsTab")S.leadsRaw=parseLeadsTab(v);else S.stats=parseStats(v)}
     else{S.err[k]=r.reason;if(k==="playbook"){S.err.sched=S.err.cadence=S.err.plan=r.reason}bad++;first=first||r.reason}});
   // Use the Leads tab when it has leads; otherwise fall back to All Leads Master and Call Lists.
   S.leadPhones=new Set((S.leadsRaw||[]).map(l=>dg10(l.phone)).filter(x=>x.length>=7));
@@ -357,7 +358,7 @@ function renderDashboard(){
        ${kpi("Presentations",pres,`of ${PLAN.pres} planned${N.pres?"":N.presFromStats?" · bookings shown":""}`,pres/PLAN.pres)}
        ${kpi("Sales",N.apps.length,`of ${PLAN.sales} planned`,N.apps.length/PLAN.sales)}
        ${kpi("ALP submitted",money(N.alp),`of ${money(PLAN.goal)} · ${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day to go`,N.alp/PLAN.goal)}</div></div>`+srcNote("tracker","stats")+
-   (todayRows.length?sec("Today",fd(TODAY),`<div class="list">${todayRows.map(r=>`<div class="item" style="grid-template-columns:minmax(0,1fr)"><span><span class="p">${esc(r.activity)}</span><br><span class="m">${esc(r.time)}${r.group?" · "+esc(r.group):""}</span></span></div>`).join("")}</div>`):"")+
+   (S.sprint?sec(S.sprint.label,"",`<ul class="sprint">${S.sprint.detail.split(/(?<=[.!?])\s+/).filter(Boolean).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`):"")+
    (pending.length?sec("Needs an outcome",`${pending.length} past ${pending.length===1?"appointment":"appointments"}`,`<div class="list">${pending.slice(0,8).map(r=>`<div class="item" style="grid-template-columns:96px minmax(0,1fr) auto"><span class="d">${fd(r.appt.slice(0,10))}<br>${esc(apptTime(r.appt))}</span><span class="p">${esc(r.name)}</span>${r.bid?`<a class="lnk" href="${OUTCOME_URL}${encodeURIComponent(r.bid)}" target="_blank" rel="noopener">Held or no-show</a>`:`<span class="dim">log it on the form</span>`}</div>`).join("")}</div>`):"")+
    sec("Next presentations",appts.length?`${appts.length} booked`:up.length?`${up.length} booked · from All Leads Master`:"",
      appts.length?`<div class="list">${appts.slice(0,7).map(r=>`<div class="item" style="grid-template-columns:96px minmax(0,1fr) auto"><span class="d">${fd(r.appt.slice(0,10))}<br>${esc(apptTime(r.appt))}</span><span class="p">${esc(r.name)}</span><span class="m">${esc(r.notes)}</span></div>`).join("")}</div>`
