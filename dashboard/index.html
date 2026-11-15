@@ -369,9 +369,7 @@ function renderDashboard(){
    sec("Needs a follow-up",`${follow.length} ${follow.length===1?"lead":"leads"} replied`,
      follow.length?`<div class="list">${follow.slice(0,6).map(l=>`<div class="item" style="grid-template-columns:minmax(0,1fr) auto"><span><span class="p">${esc(l.name)}</span><br><span class="m">${esc(l.outcome.split(";")[0])}</span></span>${statusChip(l.type)}</div>`).join("")}</div>`
        :empty("No replies waiting.","Leads that texted back or talked to you show up here."))+
-   `</div>`+
-   sec("Lead pipeline",`${S.leads.length} leads`,S.leads.length?pipeline(S.leads):empty("No leads loaded.","The Leads tab had no rows."))+
-   callQueue(steps,callBack)
+   `</div>`
 }
 
 const blockHour=b=>{const m=String(b).match(/(\d{1,2})(?::\d{2})?\s*-\s*\d{1,2}(?::\d{2})?\s*(AM|PM)/i);return m?(+m[1]%12)+(/pm/i.test(m[2])?12:0):99};
