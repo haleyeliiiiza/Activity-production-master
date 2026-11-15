@@ -359,12 +359,12 @@ function renderDashboard(){
        ${kpi("ALP submitted",money(N.alp),`of ${money(PLAN.goal)} · ${money(Math.max(0,PLAN.goal-N.alp)/remaining)} a day to go`,N.alp/PLAN.goal)}</div></div>`+srcNote("tracker","stats")+
    (todayRows.length?sec("Today",fd(TODAY),`<div class="list">${todayRows.map(r=>`<div class="item" style="grid-template-columns:minmax(0,1fr)"><span><span class="p">${esc(r.activity)}</span><br><span class="m">${esc(r.time)}${r.group?" · "+esc(r.group):""}</span></span></div>`).join("")}</div>`):"")+
    (pending.length?sec("Needs an outcome",`${pending.length} past ${pending.length===1?"appointment":"appointments"}`,`<div class="list">${pending.slice(0,8).map(r=>`<div class="item" style="grid-template-columns:96px minmax(0,1fr) auto"><span class="d">${fd(r.appt.slice(0,10))}<br>${esc(apptTime(r.appt))}</span><span class="p">${esc(r.name)}</span>${r.bid?`<a class="lnk" href="${OUTCOME_URL}${encodeURIComponent(r.bid)}" target="_blank" rel="noopener">Held or no-show</a>`:`<span class="dim">log it on the form</span>`}</div>`).join("")}</div>`):"")+
-   sec("This week",esc(wk.label),
-     table(["","Plan","So far"],[tr(["Presentations",wk.pres,wn.pres]),tr(["Sales",wk.sales,wn.sales]),tr(["ALP",money(PLAN.avg*wk.sales),money(wn.alp)])]))+
    sec("Next presentations",appts.length?`${appts.length} booked`:up.length?`${up.length} booked · from All Leads Master`:"",
      appts.length?`<div class="list">${appts.slice(0,7).map(r=>`<div class="item" style="grid-template-columns:96px minmax(0,1fr) auto"><span class="d">${fd(r.appt.slice(0,10))}<br>${esc(apptTime(r.appt))}</span><span class="p">${esc(r.name)}</span><span class="m">${esc(r.notes)}</span></div>`).join("")}</div>`
      :up.length?`<div class="list">${up.slice(0,7).map(l=>`<div class="item"><span class="d">${fd(l.pres)}</span><span class="p">${esc(l.name)}</span><span class="m">${esc(l.type)}</span></div>`).join("")}</div>`
-       :empty("Nothing booked yet.","Calendly bookings show up here with their time. Cancellations drop off."))
+       :empty("Nothing booked yet.","Calendly bookings show up here with their time. Cancellations drop off."))+
+   sec("This week",esc(wk.label),
+     table(["","Plan","So far"],[tr(["Presentations",wk.pres,wn.pres]),tr(["Sales",wk.sales,wn.sales]),tr(["ALP",money(PLAN.avg*wk.sales),money(wn.alp)])]))
 }
 
 const blockHour=b=>{const m=String(b).match(/(\d{1,2})(?::\d{2})?\s*-\s*\d{1,2}(?::\d{2})?\s*(AM|PM)/i);return m?(+m[1]%12)+(/pm/i.test(m[2])?12:0):99};
